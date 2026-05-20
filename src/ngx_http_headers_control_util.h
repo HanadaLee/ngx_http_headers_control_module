@@ -35,7 +35,8 @@ extern ngx_uint_t  ngx_http_headers_control_location_hash;
 
 
 ngx_int_t ngx_http_headers_control_parse_header(ngx_conf_t *cf,
-    ngx_str_t *cmd_name, ngx_str_t *raw_header, ngx_array_t *headers,
+    ngx_str_t *cmd_name, ngx_str_t *raw_header,
+    ngx_http_headers_control_header_val_t *hv,
     ngx_http_headers_control_opcode_t opcode,
     ngx_http_headers_control_set_header_t *handlers);
 

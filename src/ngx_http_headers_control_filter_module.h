@@ -20,15 +20,7 @@ typedef enum {
 
 
 typedef struct {
-    ngx_array_t                       *types; /* of ngx_str_t */
-    ngx_array_t                       *statuses; /* of ngx_uint_t */
-    ngx_array_t                       *headers; /* of ngx_http_header_val_t */
-    ngx_flag_t                         is_input;
-} ngx_http_headers_control_cmd_t;
-
-
-typedef struct {
-    ngx_array_t             *cmds; /* of ngx_http_headers_control_cmd_t */
+    ngx_array_t             *headers; /* of ngx_http_headers_control_header_val_t */
 } ngx_http_headers_control_loc_conf_t;
 
 
@@ -60,6 +52,9 @@ struct ngx_http_headers_control_header_val_s {
     ngx_str_t                               key;
     ngx_http_headers_control_set_header_pt     handler;
     ngx_uint_t                              offset;
+    ngx_array_t                            *types;    /* of ngx_str_t */
+    ngx_array_t                            *statuses; /* of ngx_uint_t */
+    ngx_flag_t                              is_input;
     unsigned                                replace:1;
     unsigned                                wildcard:1;
     unsigned                                append:1;

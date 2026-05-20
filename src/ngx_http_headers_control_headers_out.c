@@ -107,45 +107,31 @@ static ngx_http_headers_control_set_header_t ngx_http_headers_control_set_handle
 
 
 ngx_int_t
-ngx_http_headers_control_exec_cmd(ngx_http_request_t *r,
-    ngx_http_headers_control_cmd_t *cmd)
+ngx_http_headers_control_exec_output_header(ngx_http_request_t *r,
+    ngx_http_headers_control_header_val_t *hv)
 {
-    ngx_str_t                                   value;
-    ngx_http_headers_control_header_val_t         *h;
-    ngx_uint_t                                  i;
+    ngx_str_t  value;
 
-    if (!cmd->headers) {
+    if (hv->types && !ngx_http_headers_control_check_type(r, hv->types)) {
         return NGX_OK;
     }
 
-    if (cmd->types && !ngx_http_headers_control_check_type(r, cmd->types)) {
-        return NGX_OK;
-    }
-
-    if (cmd->statuses
-        && !ngx_http_headers_control_check_status(r, cmd->statuses))
+    if (hv->statuses
+        && !ngx_http_headers_control_check_status(r, hv->statuses))
     {
         return NGX_OK;
     }
 
-    h = cmd->headers->elts;
-    for (i = 0; i < cmd->headers->nelts; i++) {
-
-        if (ngx_http_complex_value(r, &h[i].value, &value) != NGX_OK) {
-            return NGX_ERROR;
-        }
-
-        if (value.len) {
-            value.len--;  /* remove the trailing '\0' added by
-                             ngx_http_headers_control_parse_header */
-        }
-
-        if (h[i].handler(r, &h[i], &value) != NGX_OK) {
-            return NGX_ERROR;
-        }
+    if (ngx_http_complex_value(r, &hv->value, &value) != NGX_OK) {
+        return NGX_ERROR;
     }
 
-    return NGX_OK;
+    if (value.len) {
+        value.len--;  /* remove the trailing '\0' added by
+                         ngx_http_headers_control_parse_header */
+    }
+
+    return hv->handler(r, hv, &value);
 }
 
 
@@ -617,47 +603,42 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
 {
     ngx_http_headers_control_loc_conf_t   *hlcf = conf;
 
-    ngx_uint_t                          i, j;
-    ngx_http_headers_control_cmd_t        *cmd;
-    ngx_str_t                          *arg;
-    ngx_flag_t                          ignore_next_arg;
-    ngx_str_t                          *cmd_name;
-    ngx_int_t                           rc;
-    ngx_flag_t                          append = 0;
-    ngx_flag_t                          is_builtin_header = 0;
-    ngx_http_headers_control_header_val_t *h;
+    ngx_uint_t                            i;
+    ngx_http_headers_control_header_val_t   *hv;
+    ngx_str_t                            *arg;
+    ngx_flag_t                            ignore_next_arg;
+    ngx_str_t                            *cmd_name;
+    ngx_int_t                             rc;
+    ngx_flag_t                            append = 0;
+    ngx_flag_t                            is_builtin_header = 0;
+    ngx_flag_t                            header_found = 0;
     ngx_http_headers_control_set_header_t *handlers;
 
     ngx_http_headers_control_main_conf_t  *hmcf;
 
-    if (hlcf->cmds == NULL) {
-        hlcf->cmds = ngx_array_create(cf->pool, 1,
-                                      sizeof(ngx_http_headers_control_cmd_t));
+    if (hlcf->headers == NULL) {
+        hlcf->headers = ngx_array_create(cf->pool, 1,
+                                    sizeof(ngx_http_headers_control_header_val_t));
 
-        if (hlcf->cmds == NULL) {
+        if (hlcf->headers == NULL) {
             return NGX_CONF_ERROR;
         }
     }
 
-    cmd = ngx_array_push(hlcf->cmds);
-    if (cmd == NULL) {
+    hv = ngx_array_push(hlcf->headers);
+    if (hv == NULL) {
         return NGX_CONF_ERROR;
     }
 
-    cmd->headers =
-        ngx_array_create(cf->pool, 1,
-                         sizeof(ngx_http_headers_control_header_val_t));
-    if (cmd->headers == NULL) {
+    ngx_memzero(hv, sizeof(ngx_http_headers_control_header_val_t));
+
+    hv->types = ngx_array_create(cf->pool, 1, sizeof(ngx_str_t));
+    if (hv->types == NULL) {
         return NGX_CONF_ERROR;
     }
 
-    cmd->types = ngx_array_create(cf->pool, 1, sizeof(ngx_str_t));
-    if (cmd->types == NULL) {
-        return NGX_CONF_ERROR;
-    }
-
-    cmd->statuses = ngx_array_create(cf->pool, 1, sizeof(ngx_uint_t));
-    if (cmd->statuses == NULL) {
+    hv->statuses = ngx_array_create(cf->pool, 1, sizeof(ngx_uint_t));
+    if (hv->statuses == NULL) {
         return NGX_CONF_ERROR;
     }
 
@@ -679,14 +660,26 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
         }
 
         if (arg[i].data[0] != '-') {
+
+            if (header_found) {
+                ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                              "%V: only one header allowed per directive",
+                              cmd_name);
+
+                return NGX_CONF_ERROR;
+            }
+
             rc = ngx_http_headers_control_parse_header(cf, cmd_name,
-                                                    &arg[i], cmd->headers,
+                                                    &arg[i],
+                                                    hv,
                                                     opcode,
                                         ngx_http_headers_control_set_handlers);
 
             if (rc != NGX_OK) {
                 return NGX_CONF_ERROR;
             }
+
+            header_found = 1;
 
             continue;
         }
@@ -703,7 +696,7 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
 
                 rc = ngx_http_headers_control_parse_types(cf->log, cmd_name,
                                                        &arg[i + 1],
-                                                       cmd->types);
+                                                       hv->types);
 
                 if (rc != NGX_OK) {
                     return NGX_CONF_ERROR;
@@ -725,7 +718,7 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
 
                 rc = ngx_http_headers_control_parse_statuses(cf->log, cmd_name,
                                                           &arg[i + 1],
-                                                          cmd->statuses);
+                                                          hv->statuses);
 
                 if (rc != NGX_OK) {
                     return NGX_CONF_ERROR;
@@ -759,54 +752,46 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
         return NGX_CONF_ERROR;
     }
 
-    dd("Found %d statuses, %d types, and %d headers",
-       (int) cmd->statuses->nelts, (int) cmd->types->nelts,
-       (int) cmd->headers->nelts);
+    if (!header_found) {
+        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                      "%V: no header argument specified", cmd_name);
 
-    if (cmd->headers->nelts == 0) {
-        cmd->headers = NULL;
+        return NGX_CONF_ERROR;
+    }
 
-    } else {
+    if (append) {
+        handlers = ngx_http_headers_control_set_handlers;
 
-        h = cmd->headers->elts;
-        for (i = 0; i < cmd->headers->nelts; i++) {
-            h[i].append = 0;
-
-            handlers = ngx_http_headers_control_set_handlers;
-
-            for (j = 0; handlers[j].name.len; j++) {
-                if (h[i].key.len == handlers[j].name.len
-                    && ngx_strncasecmp(h[i].key.data, handlers[j].name.data,
-                                       h[i].key.len) == 0)
-                {
-                    is_builtin_header = 1;
-                    break;
-                }
+        for (i = 0; handlers[i].name.len; i++) {
+            if (hv->key.len == handlers[i].name.len
+                && ngx_strncasecmp(hv->key.data, handlers[i].name.data,
+                                   hv->key.len) == 0)
+            {
+                is_builtin_header = 1;
+                break;
             }
+        }
 
-            if (is_builtin_header && append) {
-                ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                              "%V: can not append builtin headers \"%V\"",
-                              cmd_name, &h[i].key);
+        if (is_builtin_header) {
+            ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                          "%V: can not append builtin headers \"%V\"",
+                          cmd_name, &hv->key);
 
-                return NGX_CONF_ERROR;
-            }
-
-            if (!is_builtin_header) {
-                h[i].append = append;
-            }
+            return NGX_CONF_ERROR;
         }
     }
 
-    if (cmd->types->nelts == 0) {
-        cmd->types = NULL;
+    hv->append = append;
+
+    if (hv->types->nelts == 0) {
+        hv->types = NULL;
     }
 
-    if (cmd->statuses->nelts == 0) {
-        cmd->statuses = NULL;
+    if (hv->statuses->nelts == 0) {
+        hv->statuses = NULL;
     }
 
-    cmd->is_input = 0;
+    hv->is_input = 0;
 
     hmcf = ngx_http_conf_get_module_main_conf(cf,
                                          ngx_http_headers_control_filter_module);

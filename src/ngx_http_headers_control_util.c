@@ -16,23 +16,17 @@
 
 ngx_int_t
 ngx_http_headers_control_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
-    ngx_str_t *raw_header, ngx_array_t *headers,
+    ngx_str_t *raw_header,
+    ngx_http_headers_control_header_val_t *hv,
     ngx_http_headers_control_opcode_t opcode,
     ngx_http_headers_control_set_header_t *handlers)
 {
-    ngx_http_headers_control_header_val_t             *hv;
-
     ngx_uint_t                           i;
     ngx_str_t                            key = ngx_null_string;
     ngx_str_t                            value = ngx_null_string;
     ngx_flag_t                           seen_end_of_key;
     ngx_http_compile_complex_value_t     ccv;
     u_char                              *p;
-
-    hv = ngx_array_push(headers);
-    if (hv == NULL) {
-        return NGX_ERROR;
-    }
 
     seen_end_of_key = 0;
     for (i = 0; i < raw_header->len; i++) {

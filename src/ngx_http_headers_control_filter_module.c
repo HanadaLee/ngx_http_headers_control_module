@@ -114,24 +114,24 @@ static volatile ngx_cycle_t  *ngx_http_headers_control_prev_cycle = NULL;
 static ngx_int_t
 ngx_http_headers_control_filter(ngx_http_request_t *r)
 {
-    ngx_int_t                            rc;
-    ngx_uint_t                           i;
+    ngx_int_t                              rc;
+    ngx_uint_t                             i;
     ngx_http_headers_control_loc_conf_t    *conf;
-    ngx_http_headers_control_cmd_t         *cmd;
+    ngx_http_headers_control_header_val_t  *h;
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "headers more header filter, uri \"%V\"", &r->uri);
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_headers_control_filter_module);
 
-    if (conf->cmds) {
-        cmd = conf->cmds->elts;
-        for (i = 0; i < conf->cmds->nelts; i++) {
-            if (cmd[i].is_input) {
+    if (conf->headers) {
+        h = conf->headers->elts;
+        for (i = 0; i < conf->headers->nelts; i++) {
+            if (h[i].is_input) {
                 continue;
             }
 
-            rc = ngx_http_headers_control_exec_cmd(r, &cmd[i]);
+            rc = ngx_http_headers_control_exec_output_header(r, &h[i]);
 
             if (rc != NGX_OK) {
                 return rc;
@@ -166,7 +166,7 @@ ngx_http_headers_control_create_loc_conf(ngx_conf_t *cf)
     /*
      * set by ngx_pcalloc():
      *
-     *     conf->cmds = NULL;
+     *     conf->headers = NULL;
      */
 
     return conf;
@@ -176,30 +176,30 @@ ngx_http_headers_control_create_loc_conf(ngx_conf_t *cf)
 static char *
 ngx_http_headers_control_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_uint_t                           i;
-    ngx_uint_t                           orig_len;
-    ngx_http_headers_control_cmd_t         *prev_cmd, *cmd;
-    ngx_http_headers_control_loc_conf_t    *prev = parent;
-    ngx_http_headers_control_loc_conf_t    *conf = child;
+    ngx_uint_t                              i;
+    ngx_uint_t                              orig_len;
+    ngx_http_headers_control_header_val_t   *prev_h, *h;
+    ngx_http_headers_control_loc_conf_t     *prev = parent;
+    ngx_http_headers_control_loc_conf_t     *conf = child;
 
-    if (conf->cmds == NULL || conf->cmds->nelts == 0) {
-        conf->cmds = prev->cmds;
+    if (conf->headers == NULL || conf->headers->nelts == 0) {
+        conf->headers = prev->headers;
 
-    } else if (prev->cmds && prev->cmds->nelts) {
-        orig_len = conf->cmds->nelts;
+    } else if (prev->headers && prev->headers->nelts) {
+        orig_len = conf->headers->nelts;
 
-        (void) ngx_array_push_n(conf->cmds, prev->cmds->nelts);
+        (void) ngx_array_push_n(conf->headers, prev->headers->nelts);
 
-        cmd = conf->cmds->elts;
+        h = conf->headers->elts;
 
         for (i = 0; i < orig_len; i++) {
-            cmd[conf->cmds->nelts - 1 - i] = cmd[orig_len - 1 - i];
+            h[conf->headers->nelts - 1 - i] = h[orig_len - 1 - i];
         }
 
-        prev_cmd = prev->cmds->elts;
+        prev_h = prev->headers->elts;
 
-        for (i = 0; i < prev->cmds->nelts; i++) {
-            cmd[i] = prev_cmd[i];
+        for (i = 0; i < prev->headers->nelts; i++) {
+            h[i] = prev_h[i];
         }
     }
 
@@ -258,11 +258,11 @@ ngx_http_headers_control_post_config(ngx_conf_t *cf)
 static ngx_int_t
 ngx_http_headers_control_handler(ngx_http_request_t *r)
 {
-    ngx_int_t                            rc;
-    ngx_uint_t                           i;
+    ngx_int_t                              rc;
+    ngx_uint_t                             i;
     ngx_http_headers_control_loc_conf_t    *conf;
     ngx_http_headers_control_main_conf_t   *hmcf;
-    ngx_http_headers_control_cmd_t         *cmd;
+    ngx_http_headers_control_header_val_t  *h;
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "headers more rewrite handler, uri \"%V\"", &r->uri);
@@ -305,18 +305,18 @@ ngx_http_headers_control_handler(ngx_http_request_t *r)
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_headers_control_filter_module);
 
-    if (conf->cmds) {
+    if (conf->headers) {
         if (r->http_version < NGX_HTTP_VERSION_10) {
             return NGX_DECLINED;
         }
 
-        cmd = conf->cmds->elts;
-        for (i = 0; i < conf->cmds->nelts; i++) {
-            if (!cmd[i].is_input) {
+        h = conf->headers->elts;
+        for (i = 0; i < conf->headers->nelts; i++) {
+            if (!h[i].is_input) {
                 continue;
             }
 
-            rc = ngx_http_headers_control_exec_input_cmd(r, &cmd[i]);
+            rc = ngx_http_headers_control_exec_input_header(r, &h[i]);
 
             if (rc != NGX_OK) {
                 return rc;
