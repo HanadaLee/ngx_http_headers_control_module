@@ -15,7 +15,10 @@
 
 typedef enum {
     ngx_http_headers_control_opcode_set,
-    ngx_http_headers_control_opcode_clear
+    ngx_http_headers_control_opcode_clear,
+    ngx_http_headers_control_opcode_add,
+    ngx_http_headers_control_opcode_append,
+    ngx_http_headers_control_opcode_rewrite
 } ngx_http_headers_control_opcode_t;
 
 
@@ -52,10 +55,9 @@ struct ngx_http_headers_control_header_val_s {
     ngx_str_t                               key;
     ngx_http_headers_control_set_header_pt     handler;
     ngx_uint_t                              offset;
+    ngx_http_headers_control_opcode_t       opcode;
     ngx_flag_t                              is_input;
-    unsigned                                replace:1;
     unsigned                                wildcard:1;
-    unsigned                                append:1;
 };
 
 

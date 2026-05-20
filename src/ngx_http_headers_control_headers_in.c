@@ -16,8 +16,7 @@
 
 static char *ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
     ngx_command_t *ngx_cmd, void *conf,
-    ngx_http_headers_control_opcode_t opcode,
-    ngx_flag_t replace);
+    ngx_http_headers_control_opcode_t opcode);
 static ngx_int_t ngx_http_headers_control_set_header(ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
 static ngx_int_t ngx_http_headers_control_set_header_helper(ngx_http_request_t *r,
@@ -211,6 +210,10 @@ ngx_http_headers_control_set_header_helper(ngx_http_request_t *r,
 
     matched = NULL;
 
+    if (hv->opcode == ngx_http_headers_control_opcode_append) {
+        goto create;
+    }
+
 retry:
 
     part = &r->headers_in.headers.part;
@@ -251,6 +254,10 @@ retry:
 
 matched:
 
+        if (hv->opcode == ngx_http_headers_control_opcode_add) {
+            return NGX_OK;
+        }
+
         if (value->len == 0 || (matched && matched != &h[i])) {
             h[i].hash = 0;
 
@@ -289,9 +296,11 @@ matched:
         return NGX_OK;
     }
 
-    if (value->len == 0 || hv->replace) {
+    if (value->len == 0 || hv->opcode == ngx_http_headers_control_opcode_rewrite) {
         return NGX_OK;
     }
+
+create:
 
     if (r->headers_in.headers.last == NULL) {
         /* must be 400 bad request */
@@ -361,6 +370,14 @@ ngx_http_headers_control_set_builtin_header(ngx_http_request_t *r,
 
     if (old == NULL || *old == NULL) {
         dd("set normal header");
+        return ngx_http_headers_control_set_header_helper(r, hv, value, old);
+    }
+
+    if (hv->opcode == ngx_http_headers_control_opcode_add) {
+        return NGX_OK;
+    }
+
+    if (hv->opcode == ngx_http_headers_control_opcode_append) {
         return ngx_http_headers_control_set_header_helper(r, hv, value, old);
     }
 
@@ -452,42 +469,43 @@ ngx_http_headers_control_request_header(ngx_conf_t *cf,
     ngx_str_t                            *arg;
     ngx_str_t                            *cmd_name;
     ngx_http_headers_control_opcode_t     opcode;
-    ngx_flag_t                            replace = 0;
 
     arg = cf->args->elts;
     cmd_name = &arg[0];
 
     if (cf->args->nelts < 3) {
         ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: operation is required (set, clear, or rewrite)",
+                      "%V: operation is required "
+                      "(set, clear, add, append, or rewrite)",
                       cmd_name);
         return NGX_CONF_ERROR;
     }
 
     if (arg[1].len == 3 && ngx_strncasecmp(arg[1].data, (u_char *) "set", 3) == 0) {
         opcode = ngx_http_headers_control_opcode_set;
+    } else if (arg[1].len == 3 && ngx_strncasecmp(arg[1].data, (u_char *) "add", 3) == 0) {
+        opcode = ngx_http_headers_control_opcode_add;
     } else if (arg[1].len == 5 && ngx_strncasecmp(arg[1].data, (u_char *) "clear", 5) == 0) {
         opcode = ngx_http_headers_control_opcode_clear;
+    } else if (arg[1].len == 6 && ngx_strncasecmp(arg[1].data, (u_char *) "append", 6) == 0) {
+        opcode = ngx_http_headers_control_opcode_append;
     } else if (arg[1].len == 7 && ngx_strncasecmp(arg[1].data, (u_char *) "rewrite", 7) == 0) {
-        opcode = ngx_http_headers_control_opcode_set;
-        replace = 1;
+        opcode = ngx_http_headers_control_opcode_rewrite;
     } else {
         ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                       "%V: unknown operation \"%V\" "
-                      "(expected: set, clear, or rewrite)",
+                      "(expected: set, clear, add, append, or rewrite)",
                       cmd_name, &arg[1]);
         return NGX_CONF_ERROR;
     }
 
-    return ngx_http_headers_control_parse_directive(cf, cmd, conf, opcode,
-                                                    replace);
+    return ngx_http_headers_control_parse_directive(cf, cmd, conf, opcode);
 }
 
 
 static char *
 ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
-    void *conf, ngx_http_headers_control_opcode_t opcode,
-    ngx_flag_t replace)
+    void *conf, ngx_http_headers_control_opcode_t opcode)
 {
     ngx_http_headers_control_loc_conf_t   *hlcf = conf;
 
@@ -498,6 +516,8 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
     ngx_str_t                             name = ngx_null_string;
     ngx_str_t                             value = ngx_null_string;
     ngx_int_t                             rc;
+    ngx_flag_t                            is_builtin_header;
+    ngx_http_headers_control_set_header_t *handlers;
 
     ngx_http_headers_control_main_conf_t  *hmcf;
 
@@ -516,6 +536,8 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
     }
 
     ngx_memzero(hv, sizeof(ngx_http_headers_control_header_val_t));
+
+    hv->opcode = opcode;
 
     arg = cf->args->elts;
     cmd_name = &arg[0];
@@ -564,7 +586,29 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
         return NGX_CONF_ERROR;
     }
 
-    hv->replace = replace;
+    if (opcode == ngx_http_headers_control_opcode_append) {
+        is_builtin_header = 0;
+        handlers = ngx_http_headers_control_set_handlers;
+
+        for (i = 0; handlers[i].name.len; i++) {
+            if (hv->key.len == handlers[i].name.len
+                && ngx_strncasecmp(hv->key.data, handlers[i].name.data,
+                                   hv->key.len) == 0)
+            {
+                is_builtin_header = 1;
+                break;
+            }
+        }
+
+        if (is_builtin_header) {
+            ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                          "%V: can not append builtin headers \"%V\"",
+                          cmd_name, &hv->key);
+
+            return NGX_CONF_ERROR;
+        }
+    }
+
     hv->is_input = 1;
 
     hmcf = ngx_http_conf_get_module_main_conf(cf,
