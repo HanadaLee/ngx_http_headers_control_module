@@ -16,7 +16,8 @@
 
 static char *
 ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
-        void *conf, ngx_http_headers_control_opcode_t opcode);
+        void *conf, ngx_http_headers_control_opcode_t opcode,
+        ngx_flag_t append);
 static ngx_int_t ngx_http_headers_control_set_header(ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
 static ngx_int_t ngx_http_headers_control_set_header_helper(ngx_http_request_t *r,
@@ -516,26 +517,48 @@ ngx_http_headers_control_clear_builtin_header(ngx_http_request_t *r,
 
 
 char *
-ngx_http_headers_control_set_headers(ngx_conf_t *cf,
+ngx_http_headers_control_response_header(ngx_conf_t *cf,
     ngx_command_t *cmd, void *conf)
 {
-    return ngx_http_headers_control_parse_directive(cf, cmd, conf,
-                                         ngx_http_headers_control_opcode_set);
-}
+    ngx_str_t                            *arg;
+    ngx_str_t                            *cmd_name;
+    ngx_http_headers_control_opcode_t     opcode;
+    ngx_flag_t                            append = 0;
 
+    arg = cf->args->elts;
+    cmd_name = &arg[0];
 
-char *
-ngx_http_headers_control_clear_headers(ngx_conf_t *cf,
-    ngx_command_t *cmd, void *conf)
-{
-    return ngx_http_headers_control_parse_directive(cf, cmd, conf,
-                                        ngx_http_headers_control_opcode_clear);
+    if (cf->args->nelts < 3) {
+        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                      "%V: operation is required (set, clear, or append)",
+                      cmd_name);
+        return NGX_CONF_ERROR;
+    }
+
+    if (arg[1].len == 3 && ngx_strncasecmp(arg[1].data, (u_char *) "set", 3) == 0) {
+        opcode = ngx_http_headers_control_opcode_set;
+    } else if (arg[1].len == 5 && ngx_strncasecmp(arg[1].data, (u_char *) "clear", 5) == 0) {
+        opcode = ngx_http_headers_control_opcode_clear;
+    } else if (arg[1].len == 6 && ngx_strncasecmp(arg[1].data, (u_char *) "append", 6) == 0) {
+        opcode = ngx_http_headers_control_opcode_set;
+        append = 1;
+    } else {
+        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                      "%V: unknown operation \"%V\" "
+                      "(expected: set, clear, or append)",
+                      cmd_name, &arg[1]);
+        return NGX_CONF_ERROR;
+    }
+
+    return ngx_http_headers_control_parse_directive(cf, cmd, conf, opcode,
+                                                    append);
 }
 
 
 static char *
 ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
-    void *conf, ngx_http_headers_control_opcode_t opcode)
+    void *conf, ngx_http_headers_control_opcode_t opcode,
+    ngx_flag_t append)
 {
     ngx_http_headers_control_loc_conf_t   *hlcf = conf;
 
@@ -545,7 +568,6 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
     ngx_str_t                            *cmd_name;
     ngx_str_t                             name = ngx_null_string;
     ngx_str_t                             value = ngx_null_string;
-    ngx_flag_t                            append = 0;
     ngx_flag_t                            is_builtin_header = 0;
     ngx_int_t                             rc;
     ngx_http_headers_control_set_header_t *handlers;
@@ -571,37 +593,15 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
     arg = cf->args->elts;
     cmd_name = &arg[0];
 
-    for (i = 1; i < cf->args->nelts; i++) {
+    /* args[0] = directive name, args[1] = operation, start from args[2] */
+
+    for (i = 2; i < cf->args->nelts; i++) {
 
         if (arg[i].len == 0) {
             continue;
         }
 
-        if (arg[i].data[0] == '-') {
-
-            if (arg[i].len == 2 && arg[i].data[1] == 'a') {
-
-                if (ngx_strncasecmp((u_char *) "more_set_headers",
-                                    cmd_name->data, cmd_name->len) != 0)
-                {
-                    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                                  "%V: invalid option name: \"%V\"",
-                                  cmd_name, &arg[i]);
-
-                    return NGX_CONF_ERROR;
-                }
-
-                append = 1;
-                continue;
-            }
-
-            ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                          "%V: invalid option name: \"%V\"", cmd_name, &arg[i]);
-
-            return NGX_CONF_ERROR;
-        }
-
-        /* non-option argument: first is header name, second is header value */
+        /* first non-empty arg is header name, second is header value */
 
         if (name.len == 0) {
             name = arg[i];
@@ -614,8 +614,8 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
         }
 
         ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: too many arguments (expected: header-name header-value)",
-                      cmd_name);
+                      "%V: too many arguments (expected: header-name"
+                      " header-value)", cmd_name);
 
         return NGX_CONF_ERROR;
     }

@@ -38,34 +38,18 @@ ngx_uint_t  ngx_http_headers_control_location_hash = 0;
 
 static ngx_command_t  ngx_http_headers_control_filter_commands[] = {
 
-    { ngx_string("more_set_headers"),
+    { ngx_string("response_header_control"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-                        |NGX_CONF_1MORE,
-      ngx_http_headers_control_set_headers,
+                        |NGX_CONF_2MORE,
+      ngx_http_headers_control_response_header,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL},
 
-    { ngx_string("more_clear_headers"),
+    { ngx_string("request_header_control"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-                        |NGX_CONF_1MORE,
-      ngx_http_headers_control_clear_headers,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      NULL},
-
-    { ngx_string("more_set_input_headers"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-                        |NGX_CONF_1MORE,
-      ngx_http_headers_control_set_input_headers,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      NULL},
-
-    { ngx_string("more_clear_input_headers"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-                        |NGX_CONF_1MORE,
-      ngx_http_headers_control_clear_input_headers,
+                        |NGX_CONF_2MORE,
+      ngx_http_headers_control_request_header,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL},

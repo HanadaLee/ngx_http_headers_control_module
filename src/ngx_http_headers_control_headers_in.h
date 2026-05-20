@@ -16,10 +16,7 @@
 ngx_int_t ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv);
 
-char *ngx_http_headers_control_set_input_headers(ngx_conf_t *cf,
-    ngx_command_t *cmd, void *conf);
-
-char *ngx_http_headers_control_clear_input_headers(ngx_conf_t *cf,
+char *ngx_http_headers_control_request_header(ngx_conf_t *cf,
     ngx_command_t *cmd, void *conf);
 
 
