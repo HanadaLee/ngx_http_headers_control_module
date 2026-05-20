@@ -170,7 +170,24 @@ ngx_int_t
 ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv)
 {
-    ngx_str_t  value;
+    ngx_str_t  value, val;
+
+    if (hv->filter) {
+        if (ngx_http_complex_value(r, hv->filter, &val) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        if (val.len == 0 || (val.len == 1 && val.data[0] == '0')) {
+            if (!hv->negative) {
+                return NGX_OK;
+            }
+
+        } else {
+            if (hv->negative) {
+                return NGX_OK;
+            }
+        }
+    }
 
     if (ngx_http_complex_value(r, &hv->value, &value) != NGX_OK) {
         return NGX_ERROR;

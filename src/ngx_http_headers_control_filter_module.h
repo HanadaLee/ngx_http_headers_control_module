@@ -56,6 +56,8 @@ struct ngx_http_headers_control_header_val_s {
     ngx_http_headers_control_set_header_pt     handler;
     ngx_uint_t                              offset;
     ngx_http_headers_control_opcode_t       opcode;
+    ngx_http_complex_value_t               *filter;
+    ngx_flag_t                              negative;
     ngx_flag_t                              is_input;
     unsigned                                wildcard:1;
 };

@@ -122,6 +122,9 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
     ngx_flag_t                              is_builtin_header;
     ngx_int_t                               rc;
 
+    ngx_http_compile_complex_value_t         ccv;
+    ngx_str_t                                s;
+
     ngx_http_headers_control_main_conf_t   *hmcf;
 
     arg = cf->args->elts;
@@ -176,6 +179,54 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
     for (i = 2; i < cf->args->nelts; i++) {
 
         if (arg[i].len == 0) {
+            continue;
+        }
+
+        /* check for if= / if!= condition */
+
+        if (arg[i].len > 3 && ngx_strncmp(arg[i].data, "if=", 3) == 0) {
+            hv->negative = 0;
+            s.len = arg[i].len - 3;
+            s.data = arg[i].data + 3;
+
+            ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+
+            ccv.cf = cf;
+            ccv.value = &s;
+            ccv.complex_value = ngx_palloc(cf->pool,
+                                        sizeof(ngx_http_complex_value_t));
+            if (ccv.complex_value == NULL) {
+                return NGX_CONF_ERROR;
+            }
+
+            if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+                return NGX_CONF_ERROR;
+            }
+
+            hv->filter = ccv.complex_value;
+            continue;
+        }
+
+        if (arg[i].len > 4 && ngx_strncmp(arg[i].data, "if!=", 4) == 0) {
+            hv->negative = 1;
+            s.len = arg[i].len - 4;
+            s.data = arg[i].data + 4;
+
+            ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+
+            ccv.cf = cf;
+            ccv.value = &s;
+            ccv.complex_value = ngx_palloc(cf->pool,
+                                        sizeof(ngx_http_complex_value_t));
+            if (ccv.complex_value == NULL) {
+                return NGX_CONF_ERROR;
+            }
+
+            if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+                return NGX_CONF_ERROR;
+            }
+
+            hv->filter = ccv.complex_value;
             continue;
         }
 
