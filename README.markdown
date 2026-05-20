@@ -1,42 +1,37 @@
 Name
 ====
 
-**ngx_headers_more** - Set and clear input and output headers...more than "add"!
+**ngx_http_headers_control** - Modify input and output headers...
 
 *This module is not distributed with the Nginx source.* See [the installation instructions](#installation).
 
 Table of Contents
 =================
 
-* [Name](#name)
-* [Version](#version)
-* [Synopsis](#synopsis)
-* [Description](#description)
-* [Directives](#directives)
-    * [more_set_headers](#more_set_headers)
-    * [more_clear_headers](#more_clear_headers)
-    * [more_set_input_headers](#more_set_input_headers)
-    * [more_clear_input_headers](#more_clear_input_headers)
-* [Limitations](#limitations)
-* [Installation](#installation)
-* [Compatibility](#compatibility)
-* [Community](#community)
-    * [English Mailing List](#english-mailing-list)
-    * [Chinese Mailing List](#chinese-mailing-list)
-* [Bugs and Patches](#bugs-and-patches)
-* [Source Repository](#source-repository)
-* [Changes](#changes)
-* [Test Suite](#test-suite)
-* [TODO](#todo)
-* [Getting involved](#getting-involved)
-* [Authors](#authors)
-* [Copyright & License](#copyright--license)
-* [See Also](#see-also)
-
-Version
-=======
-
-This document describes headers-more-nginx-module [v0.34](https://github.com/openresty/headers-more-nginx-module/tags) released on 17 July 2022.
+- [Name](#name)
+- [Table of Contents](#table-of-contents)
+- [Synopsis](#synopsis)
+- [Description](#description)
+- [Directives](#directives)
+  - [more\_set\_headers](#more_set_headers)
+  - [more\_clear\_headers](#more_clear_headers)
+  - [more\_set\_input\_headers](#more_set_input_headers)
+  - [more\_clear\_input\_headers](#more_clear_input_headers)
+- [Limitations](#limitations)
+- [Installation](#installation)
+- [Compatibility](#compatibility)
+- [Community](#community)
+  - [English Mailing List](#english-mailing-list)
+  - [Chinese Mailing List](#chinese-mailing-list)
+- [Bugs and Patches](#bugs-and-patches)
+- [Source Repository](#source-repository)
+- [Changes](#changes)
+- [Test Suite](#test-suite)
+- [TODO](#todo)
+- [Getting involved](#getting-involved)
+- [Authors](#authors)
+- [Copyright \& License](#copyright--license)
+- [See Also](#see-also)
 
 Synopsis
 ========
@@ -179,8 +174,8 @@ is equivalent to
 The new header should be the one of the forms:
 
 1. `Name: Value`
-1. `Name: `
-1. `Name`
+2. `Name: `
+3. `Name`
 
 The last two effectively clear the value of the header `Name`.
 
@@ -372,7 +367,7 @@ Starting from NGINX 1.9.11, you can also compile this module as a dynamic module
 directive, for example,
 
 ```nginx
-load_module /path/to/modules/ngx_http_headers_more_filter_module.so;
+load_module /path/to/modules/ngx_http_headers_control_filter_module.so;
 ```
 
 Also, this module is included and enabled by default in the [OpenResty bundle](http://openresty.org).

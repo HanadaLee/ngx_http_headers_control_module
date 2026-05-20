@@ -32,7 +32,7 @@ GET /t
 User-Agent: Opera/9.80 (Macintosh; Intel Mac OS X 10.7.4; U; en) Presto/2.10.229 Version/11.62
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: opera: %d\n", $r->headers_in->opera)
 }
 
@@ -65,7 +65,7 @@ GET /t
 User-Agent: Mozilla/4.0 (compatible; MSIE 4.01; Windows NT 5.0)
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -99,7 +99,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -136,7 +136,7 @@ GET /t
 User-Agent: Mozilla/4.0 (compatible; MSIE 5.01; Windows 95; MSIECrawler)
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -170,7 +170,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -207,7 +207,7 @@ GET /t
 User-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0; Google Wireless Transcoder;)
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -241,7 +241,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -278,7 +278,7 @@ GET /t
 User-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; InfoPath.1)
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -312,7 +312,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -346,7 +346,7 @@ User-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; InfoPath.1)
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: msie=%d msie6=%d\n",
            $r->headers_in->msie,
            $r->headers_in->msie6)
@@ -383,7 +383,7 @@ GET /t
 User-Agent: Mozilla/5.0 (Android; Mobile; rv:13.0) Gecko/13.0 Firefox/13.0
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: gecko: %d\n", $r->headers_in->gecko)
 }
 
@@ -414,7 +414,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: gecko: %d\n", $r->headers_in->gecko)
 }
 
@@ -448,7 +448,7 @@ GET /t
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_3) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.151 Safari/535.19
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: chrome: %d\n", $r->headers_in->chrome)
 }
 
@@ -479,7 +479,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: chrome: %d\n", $r->headers_in->chrome)
 }
 
@@ -513,7 +513,7 @@ GET /t
 User-Agent: Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en) AppleWebKit/125.2 (KHTML, like Gecko) Safari/125.8
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: safari: %d\n", $r->headers_in->safari)
 }
 
@@ -544,7 +544,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: safari: %d\n", $r->headers_in->safari)
 }
 
@@ -578,7 +578,7 @@ GET /t
 User-Agent: Mozilla/5.0 (compatible; Konqueror/3.5; Linux) KHTML/3.5.10 (like Gecko) (Kubuntu)
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: konqueror: %d\n", $r->headers_in->konqueror)
 }
 
@@ -609,7 +609,7 @@ User-Agent:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: konqueror: %d\n", $r->headers_in->konqueror)
 }
 

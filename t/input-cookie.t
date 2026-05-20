@@ -33,7 +33,7 @@ Cookie: foo=bar
 Cookie: baz=blah
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: cookies: %d\n", $r->headers_in->cookies->nelts)
 }
 
@@ -67,7 +67,7 @@ Cookie:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: cookies: %d\n", $r->headers_in->cookies->nelts)
 }
 
@@ -105,7 +105,7 @@ Cookie: foo=bar
 Cookie: baz=blah
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: cookies: %d\n", $r->headers_in->cookies->nelts)
 }
 
@@ -141,7 +141,7 @@ Cookie: boo=123
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: cookies: %d\n", $r->headers_in->cookies->nelts)
 }
 

@@ -10,17 +10,17 @@
 #include "ddebug.h"
 
 
-#include "ngx_http_headers_more_util.h"
+#include "ngx_http_headers_control_util.h"
 #include <ctype.h>
 
 
 ngx_int_t
-ngx_http_headers_more_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
+ngx_http_headers_control_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
     ngx_str_t *raw_header, ngx_array_t *headers,
-    ngx_http_headers_more_opcode_t opcode,
-    ngx_http_headers_more_set_header_t *handlers)
+    ngx_http_headers_control_opcode_t opcode,
+    ngx_http_headers_control_set_header_t *handlers)
 {
-    ngx_http_headers_more_header_val_t             *hv;
+    ngx_http_headers_control_header_val_t             *hv;
 
     ngx_uint_t                           i;
     ngx_str_t                            key = ngx_null_string;
@@ -119,7 +119,7 @@ ngx_http_headers_more_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
         hv->handler = handlers[i].handler;
     }
 
-    if (opcode == ngx_http_headers_more_opcode_clear) {
+    if (opcode == ngx_http_headers_control_opcode_clear) {
         value.len = 0;
     }
 
@@ -159,7 +159,7 @@ ngx_http_headers_more_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
 
 
 ngx_int_t
-ngx_http_headers_more_parse_statuses(ngx_log_t *log, ngx_str_t *cmd_name,
+ngx_http_headers_control_parse_statuses(ngx_log_t *log, ngx_str_t *cmd_name,
     ngx_str_t *value, ngx_array_t *statuses)
 {
     u_char          *p, *last;
@@ -224,7 +224,7 @@ ngx_http_headers_more_parse_statuses(ngx_log_t *log, ngx_str_t *cmd_name,
 
 
 ngx_int_t
-ngx_http_headers_more_parse_types(ngx_log_t *log, ngx_str_t *cmd_name,
+ngx_http_headers_control_parse_types(ngx_log_t *log, ngx_str_t *cmd_name,
     ngx_str_t *value, ngx_array_t *types)
 {
     u_char          *p, *last;
@@ -263,7 +263,7 @@ ngx_http_headers_more_parse_types(ngx_log_t *log, ngx_str_t *cmd_name,
 
 
 ngx_int_t
-ngx_http_headers_more_rm_header_helper(ngx_list_t *l, ngx_list_part_t *cur,
+ngx_http_headers_control_rm_header_helper(ngx_list_t *l, ngx_list_part_t *cur,
     ngx_uint_t i)
 {
     ngx_table_elt_t             *data;
@@ -317,7 +317,7 @@ ngx_http_headers_more_rm_header_helper(ngx_list_t *l, ngx_list_part_t *cur,
             part = &l->part;
 
             if (part == cur) {
-                ngx_http_headers_more_assert(cur->next != NULL);
+                ngx_http_headers_control_assert(cur->next != NULL);
 
                 dd("remove 'cur' from the list by rewriting 'cur': "
                    "l->last: %p, cur: %p, cur->next: %p, part: %p",

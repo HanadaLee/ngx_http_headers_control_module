@@ -28,7 +28,7 @@ __DATA__
 GET /req-header
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
 }
 
@@ -58,7 +58,7 @@ connection:
 GET /req-header
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
 }
 
@@ -88,7 +88,7 @@ connection: CLOSE
 GET /req-header
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
 }
 
@@ -118,7 +118,7 @@ connection: keep-alive
 GET /req-header
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
 }
 

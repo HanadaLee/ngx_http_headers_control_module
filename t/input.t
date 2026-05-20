@@ -927,7 +927,7 @@ GET /t
 X-Real-IP: 8.8.8.8
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     if (@defined($r->headers_in->x_real_ip) && $r->headers_in->x_real_ip) {
         printf("rewrite: x-real-ip: %s\n",
                user_string_n($r->headers_in->x_real_ip->value->data,
@@ -969,7 +969,7 @@ X-Real-IP:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     if (@defined($r->headers_in->x_real_ip) && $r->headers_in->x_real_ip) {
         printf("rewrite: x-real-ip: %s\n",
                user_string_n($r->headers_in->x_real_ip->value->data,
@@ -1014,7 +1014,7 @@ GET /t
 Via: 1.0 fred, 1.1 nowhere.com (Apache/1.1)
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     if (@defined($r->headers_in->via) && $r->headers_in->via) {
         printf("rewrite: via: %s\n",
                user_string_n($r->headers_in->via->value->data,
@@ -1056,7 +1056,7 @@ Via:
 GET /t
 
 --- stap
-F(ngx_http_headers_more_exec_input_cmd) {
+F(ngx_http_headers_control_exec_input_cmd) {
     if (@defined($r->headers_in->via) && $r->headers_in->via) {
         printf("rewrite: via: %s\n",
                user_string_n($r->headers_in->via->value->data,
