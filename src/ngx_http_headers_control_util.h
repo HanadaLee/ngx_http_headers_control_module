@@ -39,6 +39,11 @@ ngx_int_t ngx_http_headers_control_parse_header(ngx_conf_t *cf,
     ngx_http_headers_control_opcode_t opcode,
     ngx_http_headers_control_set_header_t *handlers);
 
+char *ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
+    ngx_command_t *ngx_cmd, void *conf,
+    ngx_http_headers_control_set_header_t *handlers,
+    ngx_flag_t is_input);
+
 ngx_int_t ngx_http_headers_control_rm_header_helper(ngx_list_t *l,
     ngx_list_part_t *cur, ngx_uint_t i);
 
