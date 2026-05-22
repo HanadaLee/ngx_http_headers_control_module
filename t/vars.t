@@ -1,7 +1,7 @@
 # vi:ft=
 
 use lib 'lib';
-use Test::Nginx::Socket; # 'no_plan';
+use Test::Nginx::Socket;
 
 plan tests => 9;
 
@@ -11,12 +11,12 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: vars
+=== TEST 1: variable in output header value
 --- config
     location /foo {
-        echo hi;
         set $val 'hello, world';
-        more_set_headers 'X-Foo: $val';
+        response_header_control set 'X-Foo' '$val';
+        echo hi;
     }
 --- request
     GET /foo
@@ -27,32 +27,30 @@ hi
 
 
 
-=== TEST 2: vars in both key and val
---- config
-    location /foo {
-        echo hi;
-        set $val 'hello, world';
-        more_set_headers '$val: $val';
-    }
---- request
-    GET /foo
---- response_headers
-$val: hello, world
---- response_body
-hi
-
-
-
-=== TEST 3: vars in input header directives
+=== TEST 2: variable in input header value
 --- config
     location /foo {
         set $val 'dog';
-        more_set_input_headers 'Host: $val';
+        request_header_control set 'Host' '$val';
         echo $host;
     }
 --- request
     GET /foo
 --- response_body
 dog
+
+
+
+=== TEST 3: variable in both header name and value
+--- config
+    location /foo {
+        set $val 'hello';
+        response_header_control set '$val' 'world';
+        echo hi;
+    }
+--- request
+    GET /foo
 --- response_headers
-Host:
+hello: world
+--- response_body
+hi

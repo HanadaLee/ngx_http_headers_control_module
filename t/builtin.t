@@ -1,9 +1,9 @@
 # vi:filetype=
 
 use lib 'lib';
-use Test::Nginx::Socket; # 'no_plan';
+use Test::Nginx::Socket;
 
-plan tests => 60;
+plan tests => 32;
 
 no_diff;
 
@@ -15,7 +15,7 @@ __DATA__
 --- config
     location /foo {
         echo hi;
-        more_set_headers 'Server: Foo';
+        response_header_control set 'Server' 'Foo';
     }
 --- request
     GET /foo
@@ -30,7 +30,7 @@ hi
 --- config
     location /foo {
         echo hi;
-        more_clear_headers 'Server: ';
+        response_header_control clear 'Server';
     }
 --- request
     GET /foo
@@ -44,8 +44,8 @@ hi
 === TEST 3: set Content-Type
 --- config
     location /foo {
-        default_type 'text/plan';
-        more_set_headers 'Content-Type: text/css';
+        default_type 'text/plain';
+        response_header_control set 'Content-Type' 'text/css';
         echo hi;
     }
 --- request
@@ -57,127 +57,26 @@ hi
 
 
 
-=== TEST 4: set Content-Type
---- config
-    location /foo {
-        default_type 'text/plan';
-        more_set_headers 'Content-Type: text/css';
-        return 404;
-    }
---- request
-    GET /foo
---- response_headers
-Content-Type: text/css
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 5: clear Content-Type
+=== TEST 4: clear Content-Type
 --- config
     location /foo {
         default_type 'text/plain';
-        more_clear_headers 'Content-Type: ';
-        return 404;
+        response_header_control clear 'Content-Type';
+        echo hi;
     }
 --- request
     GET /foo
 --- response_headers
 ! Content-Type
---- response_body_like: 404 Not Found
---- error_code: 404
+--- response_body
+hi
 
 
 
-=== TEST 6: clear Content-Type (colon not required)
---- config
-    location /foo {
-        default_type 'text/plain';
-        more_set_headers 'Content-Type: Hello';
-        more_clear_headers 'Content-Type';
-        return 404;
-    }
---- request
-    GET /foo
---- response_headers
-! Content-Type
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 7: clear Content-Type (value ignored)
---- config
-    location /foo {
-        default_type 'text/plain';
-        more_set_headers 'Content-Type: Hello';
-        more_clear_headers 'Content-Type: blah';
-        return 404;
-    }
---- request
-    GET /foo
---- response_headers
-! Content-Type
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 8: clear Content-Type (case insensitive)
---- config
-    location /foo {
-        default_type 'text/plain';
-        more_set_headers 'Content-Type: Hello';
-        more_clear_headers 'content-type: blah';
-        return 404;
-    }
---- request
-    GET /foo
---- response_headers
-! Content-Type
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 9: clear Content-Type using set empty
---- config
-    location /foo {
-        default_type 'text/plain';
-        more_set_headers 'Content-Type: Hello';
-        more_set_headers 'content-type:';
-        return 404;
-    }
---- request
-    GET /foo
---- response_headers
-! Content-Type
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 10: clear Content-Type using setting key only
---- config
-    location /foo {
-        default_type 'text/plain';
-        more_set_headers 'Content-Type: Hello';
-        more_set_headers 'content-type';
-        return 404;
-    }
---- request
-    GET /foo
---- response_headers
-! Content-Type
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 11: set content-length
+=== TEST 5: set Content-Length
 --- config
     location /len {
-        more_set_headers 'Content-Length: 2';
+        response_header_control set 'Content-Length' '2';
         echo hello;
     }
 --- request
@@ -189,11 +88,11 @@ he
 
 
 
-=== TEST 12: set content-length multiple times
+=== TEST 6: set Content-Length twice (second wins)
 --- config
     location /len {
-        more_set_headers 'Content-Length: 2';
-        more_set_headers 'Content-Length: 4';
+        response_header_control set -n 'Content-Length' '2';
+        response_header_control set 'Content-Length' '4';
         echo hello;
     }
 --- request
@@ -205,11 +104,10 @@ hell
 
 
 
-=== TEST 13: clear content-length
+=== TEST 7: clear Content-Length
 --- config
     location /len {
-        more_set_headers 'Content-Length: 4';
-        more_set_headers 'Content-Length:';
+        response_header_control clear 'Content-Length';
         echo hello;
     }
 --- request
@@ -221,118 +119,135 @@ hello
 
 
 
-=== TEST 14: clear content-length (another way)
---- config
-    location /len {
-        more_set_headers 'Content-Length: 4';
-        more_clear_headers 'Content-Length';
-        echo hello;
-    }
---- request
-    GET /len
---- response_headers
-! Content-Length
---- response_body
-hello
-
-
-
-=== TEST 15: clear content-type
---- config
-    location /len {
-        default_type 'text/plain';
-        more_set_headers 'Content-Type:';
-        echo hello;
-    }
---- request
-    GET /len
---- response_headers
-! Content-Type
---- response_body
-hello
-
-
-
-=== TEST 16: clear content-type (the other way)
---- config
-    location /len {
-        default_type 'text/plain';
-        more_clear_headers 'Content-Type:';
-        echo hello;
-    }
---- request
-    GET /len
---- response_headers
-! Content-Type
---- response_body
-hello
-
-
-
-=== TEST 17: set Charset
---- config
-    location /len {
-        default_type 'text/plain';
-        more_set_headers 'Charset: gbk';
-        echo hello;
-    }
---- request
-    GET /len
---- response_headers
-Charset: gbk
---- response_body
-hello
-
-
-
-=== TEST 18: clear Charset
---- config
-    location /len {
-        default_type 'text/plain';
-        more_set_headers 'Charset: gbk';
-        more_clear_headers 'Charset';
-        echo hello;
-    }
---- request
-    GET /len
---- response_headers
-! Charset
---- response_body
-hello
-
-
-
-=== TEST 19: clear Charset (the other way: using set)
---- config
-    location /len {
-        default_type 'text/plain';
-        more_set_headers 'Charset: gbk';
-        more_set_headers 'Charset: ';
-        echo hello;
-    }
---- request
-    GET /len
---- response_headers
-! Charset
---- response_body
-hello
-
-
-
-=== TEST 20: set Vary
+=== TEST 8: set Cache-Control
 --- config
     location /foo {
-        more_set_headers 'Vary: gbk';
-        echo hello;
-    }
-    location /len {
-        default_type 'text/plain';
-        more_set_headers 'Vary: hello';
-        proxy_pass http://127.0.0.1:$server_port/foo;
+        response_header_control set 'Cache-Control' 'no-cache';
+        echo ok;
     }
 --- request
-    GET /len
+    GET /foo
 --- response_headers
-Vary: hello
+Cache-Control: no-cache
 --- response_body
-hello
+ok
+
+
+
+=== TEST 9: clear Cache-Control
+--- config
+    location /foo {
+        response_header_control clear 'Cache-Control';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+! Cache-Control
+--- response_body
+ok
+
+
+
+=== TEST 10: set Content-Encoding
+--- config
+    location /foo {
+        response_header_control set 'Content-Encoding' 'gzip';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Content-Encoding: gzip
+--- response_body
+ok
+
+
+
+=== TEST 11: clear Content-Encoding
+--- config
+    location /foo {
+        response_header_control clear 'Content-Encoding';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+! Content-Encoding
+--- response_body
+ok
+
+
+
+=== TEST 12: set Location
+--- config
+    location /foo {
+        response_header_control set 'Location' '/new';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Location: /new
+--- response_body
+ok
+
+
+
+=== TEST 13: set Expires
+--- config
+    location /foo {
+        response_header_control set 'Expires' 'Thu, 01 Jan 2020 00:00:00 GMT';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Expires: Thu, 01 Jan 2020 00:00:00 GMT
+--- response_body
+ok
+
+
+
+=== TEST 14: set Date
+--- config
+    location /foo {
+        response_header_control set 'Date' 'Thu, 01 Jan 2020 00:00:00 GMT';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Date: Thu, 01 Jan 2020 00:00:00 GMT
+--- response_body
+ok
+
+
+
+=== TEST 15: set Last-Modified
+--- config
+    location /foo {
+        response_header_control set 'Last-Modified' 'Thu, 01 Jan 2020 00:00:00 GMT';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Last-Modified: Thu, 01 Jan 2020 00:00:00 GMT
+--- response_body
+ok
+
+
+
+=== TEST 16: set Accept-Ranges
+--- config
+    location /foo {
+        response_header_control set 'Accept-Ranges' 'bytes';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Accept-Ranges: bytes
+--- response_body
+ok

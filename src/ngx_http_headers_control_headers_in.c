@@ -16,30 +16,39 @@
 
 static ngx_int_t ngx_http_headers_control_set_header(ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_set_header_helper(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value,
-    ngx_table_elt_t **output_header);
-static ngx_int_t ngx_http_headers_control_set_builtin_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_set_user_agent_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_set_content_length_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_clear_builtin_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_clear_content_length_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_set_host_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_set_connection_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
-static ngx_int_t ngx_http_headers_control_set_builtin_multi_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_set_header_helper(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value, ngx_table_elt_t **output_header);
+static ngx_int_t ngx_http_headers_control_set_builtin_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_set_user_agent_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_set_content_length_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_clear_builtin_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_clear_content_length_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_set_host_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_set_connection_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
+static ngx_int_t ngx_http_headers_control_set_builtin_multi_header(
+    ngx_http_request_t *r, ngx_http_headers_control_header_val_t *hv,
+    ngx_str_t *value);
 static ngx_int_t ngx_http_headers_control_validate_host(ngx_str_t *host,
     ngx_pool_t *pool, ngx_uint_t alloc);
 
 
-static ngx_http_headers_control_set_header_t ngx_http_headers_control_set_handlers[]
+static ngx_http_headers_control_set_header_t
+    ngx_http_headers_control_set_handlers[]
         = {
 
     { ngx_string("Host"),
@@ -168,7 +177,8 @@ static ngx_http_headers_control_set_header_t ngx_http_headers_control_set_handle
 
 ngx_int_t
 ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
-    ngx_http_headers_control_header_val_t *hv)
+    ngx_http_headers_control_header_val_t *hv,
+    ngx_http_headers_control_bitmap_t *locked)
 {
     ngx_str_t  value, val;
 
@@ -179,14 +189,18 @@ ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
 
         if (val.len == 0 || (val.len == 1 && val.data[0] == '0')) {
             if (!hv->negative) {
-                return NGX_OK;
+                return NGX_DECLINED;
             }
 
         } else {
             if (hv->negative) {
-                return NGX_OK;
+                return NGX_DECLINED;
             }
         }
+    }
+
+    if (hv->opcode == ngx_http_headers_control_opcode_pass) {
+        return NGX_OK;
     }
 
     if (ngx_http_complex_value(r, &hv->value, &value) != NGX_OK) {
@@ -197,6 +211,8 @@ ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
         value.len--;  /* remove the trailing '\0' added by
                          ngx_http_headers_control_parse_header */
     }
+
+    hv->_rt_locked = locked;
 
     return hv->handler(r, hv, &value);
 }
@@ -310,7 +326,9 @@ matched:
         return NGX_OK;
     }
 
-    if (value->len == 0 || hv->opcode == ngx_http_headers_control_opcode_rewrite) {
+    if (value->len == 0
+        || hv->opcode == ngx_http_headers_control_opcode_rewrite)
+    {
         return NGX_OK;
     }
 
@@ -420,7 +438,9 @@ ngx_http_headers_control_set_host_header(ngx_http_request_t *r,
     if (value->len) {
         host= *value;
 
-        if (ngx_http_headers_control_validate_host(&host, r->pool, 0) != NGX_OK) {
+        if (ngx_http_headers_control_validate_host(&host, r->pool, 0)
+            != NGX_OK)
+        {
             return NGX_ERROR;
         }
 
@@ -441,7 +461,8 @@ ngx_http_headers_control_set_content_length_header(ngx_http_request_t *r,
     off_t           len;
 
     if (value->len == 0) {
-        return ngx_http_headers_control_clear_content_length_header(r, hv, value);
+        return ngx_http_headers_control_clear_content_length_header(r, hv,
+                                                                    value);
     }
 
     len = ngx_atosz(value->data, value->len);
@@ -477,7 +498,7 @@ ngx_http_headers_control_clear_builtin_header(ngx_http_request_t *r,
 
 
 char *
-ngx_http_headers_control_request_header(ngx_conf_t *cf,
+ngx_http_headers_control_input_header(ngx_conf_t *cf,
     ngx_command_t *cmd, void *conf)
 {
     return ngx_http_headers_control_parse_directive(cf, cmd, conf,
@@ -613,7 +634,9 @@ ngx_http_headers_control_set_builtin_multi_header(ngx_http_request_t *r,
         *headers = NULL;
     }
 
-    if (ngx_http_headers_control_set_header_helper(r, hv, value, &h) == NGX_ERROR) {
+    if (ngx_http_headers_control_set_header_helper(r, hv, value, &h)
+        == NGX_ERROR)
+    {
         return NGX_ERROR;
     }
 
@@ -670,7 +693,9 @@ ngx_http_headers_control_set_builtin_multi_header(ngx_http_request_t *r,
 #endif
 
     h = NULL;
-    if (ngx_http_headers_control_set_header_helper(r, hv, value, &h) == NGX_ERROR) {
+    if (ngx_http_headers_control_set_header_helper(r, hv, value, &h)
+        == NGX_ERROR)
+    {
         return NGX_ERROR;
     }
 
@@ -695,13 +720,14 @@ static ngx_int_t
 ngx_http_headers_control_validate_host(ngx_str_t *host, ngx_pool_t *pool,
     ngx_uint_t alloc)
 {
-    u_char  *h, ch;
-    size_t   i, dot_pos, host_len;
+    u_char     *h, ch;
+    size_t      i, dot_pos, host_len;
 
     enum {
-        sw_usual = 0,
-        sw_literal,
-        sw_rest
+        sw_host_start = 0,
+        sw_host,
+        sw_host_ip_literal,
+        sw_host_end,
     } state;
 
     dot_pos = host->len;
@@ -709,56 +735,145 @@ ngx_http_headers_control_validate_host(ngx_str_t *host, ngx_pool_t *pool,
 
     h = host->data;
 
-    state = sw_usual;
+    state = sw_host_start;
 
     for (i = 0; i < host->len; i++) {
         ch = h[i];
 
-        switch (ch) {
+        switch (state) {
 
-        case '.':
-            if (dot_pos == i - 1) {
-                return NGX_DECLINED;
+        case sw_host_start:
+
+            if (ch == '[') {
+                state = sw_host_ip_literal;
+                break;
             }
 
-            dot_pos = i;
-            break;
+            state = sw_host;
 
-        case ':':
-            if (state == sw_usual) {
-                host_len = i;
-                state = sw_rest;
-            }
-            break;
+            /* fall through */
 
-        case '[':
-            if (i == 0) {
-                state = sw_literal;
-            }
-            break;
-
-        case ']':
-            if (state == sw_literal) {
-                host_len = i + 1;
-                state = sw_rest;
-            }
-            break;
-
-        case '\0':
-            return NGX_DECLINED;
-
-        default:
-
-            if (ngx_path_separator(ch)) {
-                return NGX_DECLINED;
-            }
+        case sw_host:
 
             if (ch >= 'A' && ch <= 'Z') {
                 alloc = 1;
+                break;
+            }
+
+            if (ch >= 'a' && ch <= 'z') {
+                break;
+            }
+
+            if (ch >= '0' && ch <= '9') {
+                break;
+            }
+
+            switch (ch) {
+            case ':':
+                host_len = i;
+                state = sw_host_end;
+                break;
+            case '-':
+                break;
+            case '.':
+                if (dot_pos == i - 1) {
+                    return NGX_DECLINED;
+                }
+
+                dot_pos = i;
+                break;
+            case '_':
+            case '~':
+                /* unreserved */
+                break;
+            case '!':
+            case '$':
+            case '&':
+            case '\'':
+            case '(':
+            case ')':
+            case '*':
+            case '+':
+            case ',':
+            case ';':
+            case '=':
+                /* sub-delims */
+                break;
+            case '%':
+                /* pct-encoded */
+                break;
+            default:
+                return NGX_DECLINED;
             }
 
             break;
+
+        case sw_host_ip_literal:
+
+            if (ch >= 'A' && ch <= 'Z') {
+                alloc = 1;
+                break;
+            }
+
+            if (ch >= 'a' && ch <= 'z') {
+                break;
+            }
+
+            if (ch >= '0' && ch <= '9') {
+                break;
+            }
+
+            switch (ch) {
+            case ':':
+                break;
+            case ']':
+                host_len = i + 1;
+                state = sw_host_end;
+                break;
+            case '-':
+                break;
+            case '.':
+                if (dot_pos == i - 1) {
+                    return NGX_DECLINED;
+                }
+
+                dot_pos = i;
+                break;
+            case '_':
+            case '~':
+                /* unreserved */
+                break;
+            case '!':
+            case '$':
+            case '&':
+            case '\'':
+            case '(':
+            case ')':
+            case '*':
+            case '+':
+            case ',':
+            case ';':
+            case '=':
+                /* sub-delims */
+                break;
+            default:
+                return NGX_DECLINED;
+            }
+
+            break;
+
+        case sw_host_end:
+
+            if (ch == ':') {
+                break;
+            }
+
+            return NGX_DECLINED;
         }
+    }
+
+    if (state == sw_host_ip_literal) {
+        return NGX_DECLINED;
     }
 
     if (dot_pos == host_len - 1) {

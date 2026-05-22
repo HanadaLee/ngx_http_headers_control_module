@@ -1,20 +1,19 @@
 # vi:filetype=
 
 use lib 'lib';
-use Test::Nginx::Socket; # 'no_plan';
+use Test::Nginx::Socket;
 
 repeat_each(3);
 
-plan tests => repeat_each() * 2 * blocks();
+plan tests => repeat_each() * blocks();
 
-#no_long_string();
-#no_diff;
+no_long_string();
 
 run_tests();
 
 __DATA__
 
-=== TEST 1: set request header at client side
+=== TEST 1: set input header in eval block
 --- config
     location /foo {
         eval_subrequest_in_memory off;
@@ -22,9 +21,8 @@ __DATA__
         eval $res {
             echo -n 1;
         }
-        #echo "[$res]";
         if ($res = '1') {
-            more_set_input_headers 'Foo: Bar';
+            request_header_control set 'Foo' 'Bar';
             echo "OK";
             break;
         }

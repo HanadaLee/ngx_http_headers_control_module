@@ -3,135 +3,62 @@
 use lib 'lib';
 use Test::Nginx::Socket;
 
-#worker_connections(1014);
-#master_process_enabled(1);
-#log_level('warn');
-
 repeat_each(2);
 
 plan tests => repeat_each() * (4 * blocks());
 
-#no_diff();
 no_long_string();
 
 run_tests();
 
 __DATA__
 
-=== TEST 1: clear the Connection req header
+=== TEST 1: clear Connection header
 --- config
     location /req-header {
-        more_clear_input_headers Connection;
+        request_header_control clear 'Connection';
         echo "connection: $http_connection";
     }
 --- request
 GET /req-header
-
---- stap
-F(ngx_http_headers_control_exec_input_cmd) {
-    printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
-}
-
-
-F(ngx_http_core_content_phase) {
-    printf("content: conn type: %d\n", $r->headers_in->connection_type)
-}
-
---- stap_out
-rewrite: conn type: 1
-content: conn type: 0
-
 --- response_body
-connection: 
---- no_error_log
-[error]
+connection:
 
 
 
-=== TEST 2: set custom Connection req header (close)
+=== TEST 2: set Connection to close
 --- config
     location /req-header {
-        more_set_input_headers "Connection: CLOSE";
+        request_header_control set 'Connection' 'CLOSE';
         echo "connection: $http_connection";
     }
 --- request
 GET /req-header
-
---- stap
-F(ngx_http_headers_control_exec_input_cmd) {
-    printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
-}
-
-
-F(ngx_http_core_content_phase) {
-    printf("content: conn type: %d\n", $r->headers_in->connection_type)
-}
-
---- stap_out
-rewrite: conn type: 1
-content: conn type: 1
-
 --- response_body
 connection: CLOSE
---- no_error_log
-[error]
 
 
 
-=== TEST 3: set custom Connection req header (keep-alive)
+=== TEST 3: set Connection to keep-alive
 --- config
     location /req-header {
-        more_set_input_headers "Connection: keep-alive";
+        request_header_control set 'Connection' 'keep-alive';
         echo "connection: $http_connection";
     }
 --- request
 GET /req-header
-
---- stap
-F(ngx_http_headers_control_exec_input_cmd) {
-    printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
-}
-
-
-F(ngx_http_core_content_phase) {
-    printf("content: conn type: %d\n", $r->headers_in->connection_type)
-}
-
---- stap_out
-rewrite: conn type: 1
-content: conn type: 2
-
 --- response_body
 connection: keep-alive
---- no_error_log
-[error]
 
 
 
-=== TEST 4: set custom Connection req header (bad)
+=== TEST 4: set Connection to unknown value
 --- config
     location /req-header {
-        more_set_input_headers "Connection: bad";
+        request_header_control set 'Connection' 'bad';
         echo "connection: $http_connection";
     }
 --- request
 GET /req-header
-
---- stap
-F(ngx_http_headers_control_exec_input_cmd) {
-    printf("rewrite: conn type: %d\n", $r->headers_in->connection_type)
-}
-
-
-F(ngx_http_core_content_phase) {
-    printf("content: conn type: %d\n", $r->headers_in->connection_type)
-}
-
---- stap_out
-rewrite: conn type: 1
-content: conn type: 0
-
 --- response_body
 connection: bad
---- no_error_log
-[error]

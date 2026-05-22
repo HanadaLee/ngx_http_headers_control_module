@@ -30,14 +30,16 @@ ngx_http_headers_control_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
         return NGX_ERROR;
     }
 
-    hv->wildcard = (key->data[key->len - 1] == '*');
-    if (hv->wildcard && key->len < 2) {
-        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: wildcard key too short: %V",
-                      cmd_name, key);
-        return NGX_ERROR;
+    for (i = 0; i < key->len; i++) {
+        if (ngx_isspace(key->data[i])) {
+            ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                          "%V: header name contains whitespace: \"%V\"",
+                          cmd_name, key);
+            return NGX_ERROR;
+        }
     }
 
+    hv->wildcard = (key->data[key->len - 1] == '*');
     hv->hash = ngx_hash_key_lc(key->data, key->len);
     hv->key = *key;
 
@@ -105,67 +107,89 @@ ngx_http_headers_control_parse_header(ngx_conf_t *cf, ngx_str_t *cmd_name,
 
 
 char *
-ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
-    void *conf,
+ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
+    ngx_command_t *ngx_cmd, void *conf,
     ngx_http_headers_control_set_header_t *handlers,
     ngx_flag_t is_input)
 {
-    ngx_http_headers_control_loc_conf_t    *hlcf = conf;
+    ngx_http_headers_control_loc_conf_t     *hlcf = conf;
+    ngx_http_headers_control_main_conf_t    *hmcf;
 
-    ngx_uint_t                              i;
+    ngx_uint_t                               i;
     ngx_http_headers_control_header_val_t   *hv;
-    ngx_str_t                              *arg;
-    ngx_str_t                              *cmd_name;
-    ngx_http_headers_control_opcode_t       opcode;
-    ngx_str_t                               name = ngx_null_string;
-    ngx_str_t                               value = ngx_null_string;
-    ngx_flag_t                              is_builtin_header;
-    ngx_int_t                               rc;
+    ngx_str_t                               *arg;
+    ngx_str_t                               *cmd_name;
+    ngx_http_headers_control_opcode_t        opcode;
+    ngx_str_t                                key = ngx_null_string;
+    ngx_str_t                                value = ngx_null_string;
+    ngx_flag_t                               is_builtin_header;
+    ngx_int_t                                rc;
 
     ngx_http_compile_complex_value_t         ccv;
     ngx_str_t                                s;
 
-    ngx_http_headers_control_main_conf_t   *hmcf;
+    ngx_array_t                            **headers;
+    ngx_uint_t                              *cnt;
+    ngx_uint_t                               cur;
 
     arg = cf->args->elts;
     cmd_name = &arg[0];
 
     if (cf->args->nelts < 3) {
-        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: operation is required "
-                      "(set, clear, add, append, or rewrite)",
+        ngx_log_error(NGX_LOG_ERR, cf->log, 0, "%V: too few arguments",
                       cmd_name);
         return NGX_CONF_ERROR;
     }
 
-    if (arg[1].len == 3 && ngx_strncasecmp(arg[1].data, (u_char *) "set", 3) == 0) {
+    if (arg[1].len == 3
+        && ngx_strncasecmp(arg[1].data, (u_char *) "set", 3) == 0)
+    {
         opcode = ngx_http_headers_control_opcode_set;
-    } else if (arg[1].len == 3 && ngx_strncasecmp(arg[1].data, (u_char *) "add", 3) == 0) {
+
+    } else if (arg[1].len == 3
+               && ngx_strncasecmp(arg[1].data, (u_char *) "add", 3) == 0)
+    {
         opcode = ngx_http_headers_control_opcode_add;
-    } else if (arg[1].len == 5 && ngx_strncasecmp(arg[1].data, (u_char *) "clear", 5) == 0) {
+
+    } else if (arg[1].len == 4
+               && ngx_strncasecmp(arg[1].data, (u_char *) "pass", 4) == 0)
+    {
+        opcode = ngx_http_headers_control_opcode_pass;
+
+    } else if (arg[1].len == 5
+               && ngx_strncasecmp(arg[1].data, (u_char *) "clear", 5) == 0)
+    {
         opcode = ngx_http_headers_control_opcode_clear;
-    } else if (arg[1].len == 6 && ngx_strncasecmp(arg[1].data, (u_char *) "append", 6) == 0) {
+
+    } else if (arg[1].len == 6
+               && ngx_strncasecmp(arg[1].data, (u_char *) "append", 6) == 0)
+    {
         opcode = ngx_http_headers_control_opcode_append;
-    } else if (arg[1].len == 7 && ngx_strncasecmp(arg[1].data, (u_char *) "rewrite", 7) == 0) {
+
+    } else if (arg[1].len == 7
+               && ngx_strncasecmp(arg[1].data, (u_char *) "rewrite", 7) == 0)
+    {
         opcode = ngx_http_headers_control_opcode_rewrite;
+
     } else {
         ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: unknown operation \"%V\" "
-                      "(expected: set, clear, add, append, or rewrite)",
-                      cmd_name, &arg[1]);
+                      "%V: unknown operation \"%V\"", cmd_name, &arg[1]);
         return NGX_CONF_ERROR;
     }
 
-    if (hlcf->headers == NULL) {
-        hlcf->headers = ngx_array_create(cf->pool, 1,
-                                    sizeof(ngx_http_headers_control_header_val_t));
+    headers = is_input ? &hlcf->headers_in : &hlcf->headers_out;
 
-        if (hlcf->headers == NULL) {
+    if (*headers == NULL) {
+        *headers = ngx_array_create(cf->pool, 1,
+                                sizeof(ngx_http_headers_control_header_val_t));
+
+        if (*headers == NULL) {
             return NGX_CONF_ERROR;
         }
     }
 
-    hv = ngx_array_push(hlcf->headers);
+    hv = ngx_array_push(*headers);
+
     if (hv == NULL) {
         return NGX_CONF_ERROR;
     }
@@ -174,90 +198,88 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
 
     hv->opcode = opcode;
 
-    /* args[0] = directive name, args[1] = operation, start from args[2] */
+    cur = 2;
 
-    for (i = 2; i < cf->args->nelts; i++) {
+    /* -n flag */
+    if (cf->args->nelts > cur
+        && arg[cur].len == 2
+        && ngx_strncmp(arg[cur].data, "-n", 2) == 0)
+    {
+        hv->next = 1;
+        cur++;
+    }
 
-        if (arg[i].len == 0) {
-            continue;
-        }
-
-        /* check for if= / if!= condition */
-
-        if (arg[i].len > 3 && ngx_strncmp(arg[i].data, "if=", 3) == 0) {
-            hv->negative = 0;
-            s.len = arg[i].len - 3;
-            s.data = arg[i].data + 3;
-
-            ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
-
-            ccv.cf = cf;
-            ccv.value = &s;
-            ccv.complex_value = ngx_palloc(cf->pool,
-                                        sizeof(ngx_http_complex_value_t));
-            if (ccv.complex_value == NULL) {
-                return NGX_CONF_ERROR;
-            }
-
-            if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
-                return NGX_CONF_ERROR;
-            }
-
-            hv->filter = ccv.complex_value;
-            continue;
-        }
-
-        if (arg[i].len > 4 && ngx_strncmp(arg[i].data, "if!=", 4) == 0) {
-            hv->negative = 1;
-            s.len = arg[i].len - 4;
-            s.data = arg[i].data + 4;
-
-            ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
-
-            ccv.cf = cf;
-            ccv.value = &s;
-            ccv.complex_value = ngx_palloc(cf->pool,
-                                        sizeof(ngx_http_complex_value_t));
-            if (ccv.complex_value == NULL) {
-                return NGX_CONF_ERROR;
-            }
-
-            if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
-                return NGX_CONF_ERROR;
-            }
-
-            hv->filter = ccv.complex_value;
-            continue;
-        }
-
-        /* first non-empty arg is header name, second is header value */
-
-        if (name.len == 0) {
-            name = arg[i];
-            continue;
-        }
-
-        if (value.len == 0) {
-            value = arg[i];
-            continue;
-        }
-
+    /* header name */
+    if (cf->args->nelts <= cur) {
         ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: too many arguments (expected: header-name"
-                      " header-value)", cmd_name);
-
+                      "%V: header name is required", cmd_name);
         return NGX_CONF_ERROR;
     }
 
-    if (name.len == 0) {
-        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                      "%V: header name is required", cmd_name);
+    key = arg[cur++];
 
+    /* header value (set-type opcodes need a value) */
+    if (opcode != ngx_http_headers_control_opcode_clear
+        && opcode != ngx_http_headers_control_opcode_pass)
+    {
+        if (cf->args->nelts <= cur) {
+            ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                          "%V: header value is required", cmd_name);
+            return NGX_CONF_ERROR;
+        }
+
+        value = arg[cur++];
+    }
+
+    /* optional if= / if!= condition */
+    if (cf->args->nelts > cur) {
+
+        if (arg[cur].len > 3
+            && ngx_strncmp(arg[cur].data, "if=", 3) == 0)
+        {
+            hv->negative = 0;
+            s.len = arg[cur].len - 3;
+            s.data = arg[cur].data + 3;
+
+        } else if (arg[cur].len > 4
+                   && ngx_strncmp(arg[cur].data, "if!=", 4) == 0)
+        {
+            hv->negative = 1;
+            s.len = arg[cur].len - 4;
+            s.data = arg[cur].data + 4;
+
+        } else {
+            ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                          "%V: invalid parameter \"%V\"", cmd_name, &arg[cur]);
+            return NGX_CONF_ERROR;
+        }
+
+        ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+
+        ccv.cf = cf;
+        ccv.value = &s;
+        ccv.complex_value = ngx_palloc(cf->pool,
+                                    sizeof(ngx_http_complex_value_t));
+        if (ccv.complex_value == NULL) {
+            return NGX_CONF_ERROR;
+        }
+
+        if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+            return NGX_CONF_ERROR;
+        }
+
+        hv->filter = ccv.complex_value;
+        cur++;
+    }
+
+    if (cf->args->nelts > cur) {
+        ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                      "%V: invalid parameter \"%V\"", cmd_name, &arg[cur]);
         return NGX_CONF_ERROR;
     }
 
     rc = ngx_http_headers_control_parse_header(cf, cmd_name,
-                                            &name, &value,
+                                            &key, &value,
                                             hv,
                                             opcode,
                                             handlers);
@@ -288,18 +310,59 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf, ngx_command_t *ngx_cmd,
         }
     }
 
-    hv->is_input = is_input;
+    /* assign rule id (reindexed during merge) */
+    cnt = is_input ? &hlcf->headers_in_cnt : &hlcf->headers_out_cnt;
+    hv->id = (*cnt)++;
 
     hmcf = ngx_http_conf_get_module_main_conf(cf,
-                                         ngx_http_headers_control_filter_module);
+                                              ngx_http_headers_control_module);
 
     if (is_input) {
         hmcf->requires_handler = 1;
+
     } else {
         hmcf->requires_filter = 1;
     }
 
     return NGX_CONF_OK;
+}
+
+
+/* bitmap helpers */
+
+void
+ngx_http_headers_control_bitmap_init(ngx_http_headers_control_bitmap_t *bm,
+    ngx_uint_t size, ngx_pool_t *pool)
+{
+    ngx_uint_t  n;
+
+    n = (size + NGX_INT_T_LEN - 1) / NGX_INT_T_LEN;
+    bm->bits = ngx_pcalloc(pool, n * sizeof(ngx_uint_t));
+    bm->size = size;
+}
+
+
+void
+ngx_http_headers_control_bitmap_set(ngx_http_headers_control_bitmap_t *bm,
+    ngx_uint_t bit)
+{
+    if (bm->bits && bit < bm->size) {
+        bm->bits[bit / NGX_INT_T_LEN]
+            |= (ngx_uint_t) 1 << (bit % NGX_INT_T_LEN);
+    }
+}
+
+
+ngx_flag_t
+ngx_http_headers_control_bitmap_isset(ngx_http_headers_control_bitmap_t *bm,
+    ngx_uint_t bit)
+{
+    if (bm->bits && bit < bm->size) {
+        return (bm->bits[bit / NGX_INT_T_LEN]
+                & ((ngx_uint_t) 1 << (bit % NGX_INT_T_LEN))) != 0;
+    }
+
+    return 0;
 }
 
 
