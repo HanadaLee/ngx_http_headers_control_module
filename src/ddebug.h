@@ -12,7 +12,7 @@
 
 #   if (NGX_HAVE_VARIADIC_MACROS)
 
-#       define dd(...) fprintf(stderr, "headers-more *** %s: ", __func__); \
+#       define dd(...) fprintf(stderr, "headers-control *** %s: ", __func__); \
             fprintf(stderr, __VA_ARGS__); \
             fprintf(stderr, " at %s line %d.\n", __FILE__, __LINE__)
 
@@ -44,7 +44,7 @@ dd_enter_helper(ngx_http_request_t *r, const char *func)
 {
     ngx_http_posted_request_t       *pr;
 
-    fprintf(stderr, "headers-more *** enter %s %.*s %.*s?%.*s c:%d m:%p r:%p ar:%p pr:%p",
+    fprintf(stderr, "headers-control *** enter %s %.*s %.*s?%.*s c:%d m:%p r:%p ar:%p pr:%p",
             func,
             (int) r->method_name.len, r->method_name.data,
             (int) r->uri.len, r->uri.data,

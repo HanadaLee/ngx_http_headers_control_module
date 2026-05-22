@@ -5,10 +5,8 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => repeat_each() * 123;
+plan tests => repeat_each() * 52;
 
-#master_on();
-#workers(2);
 log_level("warn");
 no_diff;
 
@@ -16,535 +14,603 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: simple set (1 arg)
+=== TEST 1: set a header
 --- config
     location /foo {
-        echo hi;
-        more_set_headers 'X-Foo: Blah';
+        echo ok;
+        response_header_control set 'X-Foo' 'Blah';
     }
 --- request
     GET /foo
 --- response_headers
 X-Foo: Blah
 --- response_body
-hi
+ok
 
 
 
-=== TEST 2: simple set (2 args)
+=== TEST 2: clear a header that exists
 --- config
-    location /foo {
+    location = /backend {
+        add_header X-Hidden "value";
         echo hi;
-        more_set_headers 'X-Foo: Blah' 'X-Bar: hi';
+    }
+    location /foo {
+        response_header_control clear 'X-Hidden';
+        proxy_pass http://127.0.0.1:$server_port/backend;
     }
 --- request
     GET /foo
 --- response_headers
-X-Foo: Blah
-X-Bar: hi
+! X-Hidden
 --- response_body
 hi
 
 
 
-=== TEST 3: two sets in a single location
+=== TEST 3: clear with wildcard
 --- config
-    location /two {
+    location = /backend {
+        add_header X-One "1";
+        add_header X-Two "2";
         echo hi;
-        more_set_headers 'X-Foo: Blah'
-        more_set_headers 'X-Bar: hi';
+    }
+    location /foo {
+        response_header_control clear 'X-*';
+        proxy_pass http://127.0.0.1:$server_port/backend;
     }
 --- request
-    GET /two
+    GET /foo
 --- response_headers
-X-Foo: Blah
-X-Bar: hi
+! X-One
+! X-Two
 --- response_body
 hi
 
 
 
-=== TEST 4: two sets in a single location (for 404 too)
+=== TEST 4: add - header absent (should add)
 --- config
-    location /two {
-        more_set_headers 'X-Foo: Blah'
-        more_set_headers 'X-Bar: hi';
-        return 404;
+    location /foo {
+        echo ok;
+        response_header_control add 'X-New' 'added';
     }
 --- request
-    GET /two
+    GET /foo
 --- response_headers
-X-Foo: Blah
-X-Bar: hi
---- response_body_like: 404 Not Found
---- error_code: 404
+X-New: added
+--- response_body
+ok
 
 
 
-=== TEST 5: set a header then clears it (500)
+=== TEST 5: add - header exists (should not change)
 --- config
-    location /two {
-        more_set_headers 'X-Foo: Blah';
-        more_set_headers 'X-Foo:';
-        return 500;
+    location /foo {
+        response_header_control set 'X-Foo' 'original';
+        response_header_control add 'X-Foo' 'should-not-appear';
+        echo ok;
     }
 --- request
-    GET /two
+    GET /foo
+--- response_headers
+X-Foo: original
+--- response_body
+ok
+
+
+
+=== TEST 6: append alongside existing
+--- config
+    location /foo {
+        response_header_control set 'X-Upstream' 'v1';
+        response_header_control append 'X-Upstream' 'v2';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- raw_response_headers_like eval
+qr/X-Upstream: v1\r\nX-Upstream: v2/
+--- response_body
+ok
+
+
+
+=== TEST 7: rewrite - header exists (should update)
+--- config
+    location /foo {
+        response_header_control set 'X-Foo' 'old';
+        response_header_control rewrite 'X-Foo' 'new';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Foo: new
+--- response_body
+ok
+
+
+
+=== TEST 8: rewrite - header absent (should not add)
+--- config
+    location /foo {
+        echo ok;
+        response_header_control rewrite 'X-Foo' 'val';
+    }
+--- request
+    GET /foo
 --- response_headers
 ! X-Foo
-! X-Bar
---- response_body_like: 500 Internal Server Error
---- error_code: 500
-
-
-
-=== TEST 6: set a header only when 500 (matched)
---- config
-    location /bad {
-        more_set_headers -s 500 'X-Mine: Hiya';
-        more_set_headers -s 404 'X-Yours: Blah';
-        return 500;
-    }
---- request
-    GET /bad
---- response_headers
-X-Mine: Hiya
-! X-Yours
---- response_body_like: 500 Internal Server Error
---- error_code: 500
-
-
-
-=== TEST 7: set a header only when 500 (not matched with 200)
---- config
-    location /bad {
-        more_set_headers -s 500 'X-Mine: Hiya';
-        more_set_headers -s 404 'X-Yours: Blah';
-        echo hello;
-    }
---- request
-    GET /bad
---- response_headers
-! X-Mine
-! X-Yours
 --- response_body
-hello
---- error_code: 200
+ok
 
 
 
-=== TEST 8: set a header only when 500 (not matched with 404)
+=== TEST 9: -n unlocks for subsequent rules
 --- config
-    location /bad {
-        more_set_headers -s 500 'X-Mine: Hiya';
-        more_set_headers -s 404 'X-Yours: Blah';
-        return 404;
+    location /foo {
+        response_header_control set -n 'X-Foo' 'first';
+        response_header_control set 'X-Foo' 'second';
+        echo ok;
     }
 --- request
-    GET /bad
+    GET /foo
 --- response_headers
-! X-Mine
-X-Yours: Blah
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 9: more conditions
---- config
-    location /bad {
-        more_set_headers -s '503 404' 'X-Mine: Hiya';
-        more_set_headers -s ' 404  413 ' 'X-Yours: Blah';
-        return 503;
-    }
---- request
-    GET /bad
---- response_headers
-X-Mine: Hiya
-! X-Yours
---- response_body_like: 503 Service
---- error_code: 503
-
-
-
-=== TEST 10: more conditions
---- config
-    location /bad {
-        more_set_headers -s '503 404' 'X-Mine: Hiya';
-        more_set_headers -s ' 404   413 ' 'X-Yours: Blah';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-X-Mine: Hiya
-X-Yours: Blah
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 11: more conditions
---- config
-    location /bad {
-        more_set_headers -s '503 404' 'X-Mine: Hiya';
-        more_set_headers -s ' 404   413  ' 'X-Yours: Blah';
-        return 413;
-    }
---- request
-    GET /bad
---- response_headers
-! X-Mine
-X-Yours: Blah
---- response_body_like: 413 Request Entity Too Large
---- error_code: 413
-
-
-
-=== TEST 12: simple -t
---- config
-    location /bad {
-        default_type 'text/css';
-        more_set_headers -t 'text/css' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-CSS: yes
+X-Foo: second
 --- response_body
-hi
+ok
 
 
 
-=== TEST 13: simple -t (not matched)
+=== TEST 10: without -n, first rule locks
 --- config
-    location /bad {
-        default_type 'text/plain';
-        more_set_headers -t 'text/css' 'X-CSS: yes';
-        echo hi;
+    location /foo {
+        response_header_control set 'X-Foo' 'first';
+        response_header_control set 'X-Foo' 'second';
+        echo ok;
     }
 --- request
-    GET /bad
+    GET /foo
 --- response_headers
-! X-CSS
+X-Foo: first
 --- response_body
-hi
+ok
 
 
 
-=== TEST 14: multiple -t (not matched)
---- config
-    location /bad {
-        default_type 'text/plain';
-        more_set_headers -t 'text/javascript' -t 'text/css' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-! X-CSS
---- response_body
-hi
-
-
-
-=== TEST 15: multiple -t (matched)
---- config
-    location /bad {
-        default_type 'text/plain';
-        more_set_headers -t 'text/javascript' -t 'text/plain' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-CSS: yes
---- response_body
-hi
-
-
-
-=== TEST 16: multiple -t (matched)
---- config
-    location /bad {
-        default_type 'text/javascript';
-        more_set_headers -t 'text/javascript' -t 'text/plain' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-CSS: yes
---- response_body
-hi
-
-
-
-=== TEST 17: multiple -t (matched) with extra spaces
---- config
-    location /bad {
-        default_type 'text/javascript';
-        more_set_headers -t ' text/javascript  ' -t 'text/plain' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-CSS: yes
---- response_body
-hi
-
-
-
-=== TEST 18: multiple -t merged
---- config
-    location /bad {
-        default_type 'text/javascript';
-        more_set_headers -t ' text/javascript  text/plain' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-CSS: yes
---- response_body
-hi
-
-
-
-=== TEST 19: multiple -t merged (2)
---- config
-    location /bad {
-        default_type 'text/plain';
-        more_set_headers -t ' text/javascript  text/plain' 'X-CSS: yes';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-CSS: yes
---- response_body
-hi
-
-
-
-=== TEST 20: multiple -s option in a directive (not matched)
---- config
-    location /bad {
-        more_set_headers -s 404 -s 500 'X-status: howdy';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-! X-status
---- response_body
-hi
-
-
-
-=== TEST 21: multiple -s option in a directive (matched 404)
---- config
-    location /bad {
-        more_set_headers -s 404 -s 500 'X-status: howdy';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-X-status: howdy
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 22: multiple -s option in a directive (matched 500)
---- config
-    location /bad {
-        more_set_headers -s 404 -s 500 'X-status: howdy';
-        return 500;
-    }
---- request
-    GET /bad
---- response_headers
-X-status: howdy
---- response_body_like: 500 Internal Server Error
---- error_code: 500
-
-
-
-=== TEST 23: -s mixed with -t
---- config
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 404 -s 200 -t 'text/html' 'X-status: howdy2';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-X-status: howdy2
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 24: -s mixed with -t
---- config
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 404 -s 200 -t 'text/plain' 'X-status: howdy2';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-! X-status
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 25: -s mixed with -t
---- config
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 404 -s 200 -t 'text/html' 'X-status: howdy2';
-        echo hi;
-    }
---- request
-    GET /bad
---- response_headers
-X-status: howdy2
---- response_body
-hi
---- error_code: 200
-
-
-
-=== TEST 26: -s mixed with -t
---- config
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 500 -s 200 -t 'text/html' 'X-status: howdy2';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-! X-status
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 27: merge from the upper level
---- config
-    more_set_headers -s 404 -t 'text/html' 'X-status2: howdy3';
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 500 -s 200 -t 'text/html' 'X-status: howdy2';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-X-status2: howdy3
-! X-status
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 28: merge from the upper level
---- config
-    more_set_headers -s 404 -t 'text/html' 'X-status2: howdy3';
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 500 -s 200 -t 'text/html' 'X-status: howdy2';
-        echo yeah;
-    }
---- request
-    GET /bad
---- response_headers
-! X-status2
-X-status: howdy2
---- response_body
-yeah
---- error_code: 200
-
-
-
-=== TEST 29: override settings by inheritance
---- config
-    more_set_headers -s 404 -t 'text/html' 'X-status: yeah';
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 404 -t 'text/html' 'X-status: nope';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-X-status: nope
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 30: append settings by inheritance
---- config
-    more_set_headers -s 404 -t 'text/html' 'X-status: yeah';
-    location /bad {
-        default_type 'text/html';
-        more_set_headers -s 404 -t 'text/html' 'X-status2: nope';
-        return 404;
-    }
---- request
-    GET /bad
---- response_headers
-X-status: yeah
-X-status2: nope
---- response_body_like: 404 Not Found
---- error_code: 404
-
-
-
-=== TEST 31: clear headers with wildcard
+=== TEST 11: wildcard does not lock, subsequent set executes
 --- config
     location = /backend {
-        add_header X-Hidden-One "i am hidden";
-        add_header X-Hidden-Two "me 2";
+        add_header X-Test "orig";
         echo hi;
     }
-    location /hello {
-        more_clear_headers 'X-Hidden-*';
+    location /foo {
+        response_header_control clear 'X-*';
+        response_header_control set 'X-Test' 'newval';
         proxy_pass http://127.0.0.1:$server_port/backend;
     }
 --- request
-    GET /hello
+    GET /foo
 --- response_headers
-! X-Hidden-One
-! X-Hidden-Two
+X-Test: newval
 --- response_body
 hi
 
 
 
-=== TEST 32: clear duplicate headers
+=== TEST 12: if= condition truthy
+--- config
+    location /foo {
+        set $debug "1";
+        response_header_control set 'X-Debug' 'on' if=$debug;
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Debug: on
+--- response_body
+ok
+
+
+
+=== TEST 13: if= condition falsy (empty)
+--- config
+    location /foo {
+        response_header_control set 'X-Foo' 'val' if=$http_xxx;
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+! X-Foo
+--- response_body
+ok
+
+
+
+=== TEST 14: if!= condition (negated, truthy value skips)
+--- config
+    location /foo {
+        set $mode "1";
+        response_header_control set 'X-Foo' 'val' if!=$mode;
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+! X-Foo
+--- response_body
+ok
+
+
+
+=== TEST 15: if!= condition (negated, falsy value executes)
+--- config
+    location /foo {
+        response_header_control set 'X-Foo' 'val' if!=$http_xxx;
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Foo: val
+--- response_body
+ok
+
+
+
+=== TEST 16: conditional rule does not lock when condition fails
+--- config
+    location /foo {
+        response_header_control set 'X-Foo' 'cond' if=$http_xxx;
+        response_header_control set 'X-Foo' 'fallback';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Foo: fallback
+--- response_body
+ok
+
+
+
+=== TEST 17: conditional rule locks when condition succeeds
+--- config
+    location /foo {
+        set $flag "1";
+        response_header_control set 'X-Foo' 'cond' if=$flag;
+        response_header_control set 'X-Foo' 'fallback';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Foo: cond
+--- response_body
+ok
+
+
+
+=== TEST 18: child overrides parent (inheritance)
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        response_header_control set 'X-Foo' 'child';
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+X-Foo: child
+--- response_body
+ok
+
+
+
+=== TEST 19: child defines different header, parent kept
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    response_header_control set 'X-Bar' 'parent-bar';
+    location /child {
+        response_header_control set 'X-Foo' 'child';
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+X-Foo: child
+X-Bar: parent-bar
+--- response_body
+ok
+
+
+
+=== TEST 20: child with -n does not disable parent
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        response_header_control set -n 'X-Foo' 'child';
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+X-Foo: parent
+--- response_body
+ok
+
+
+
+=== TEST 21: child with if= does not disable parent, condition fails
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        response_header_control set 'X-Foo' 'child' if=$http_xxx;
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+X-Foo: parent
+--- response_body
+ok
+
+
+
+=== TEST 22: child with if= does not disable parent, condition succeeds
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        set $flag "1";
+        response_header_control set 'X-Foo' 'child' if=$flag;
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+X-Foo: child
+--- response_body
+ok
+
+
+
+=== TEST 23: pass defines header for inheritance
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        response_header_control pass 'X-Foo';
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+! X-Foo
+--- response_body
+ok
+
+
+
+=== TEST 24: pass with if= condition fails, parent fallback
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        response_header_control pass 'X-Foo' if=$http_xxx;
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+X-Foo: parent
+--- response_body
+ok
+
+
+
+=== TEST 25: pass with if= condition succeeds, parent disabled
+--- config
+    response_header_control set 'X-Foo' 'parent';
+    location /child {
+        set $flag "1";
+        response_header_control pass 'X-Foo' if=$flag;
+        echo ok;
+    }
+--- request
+    GET /child
+--- response_headers
+! X-Foo
+--- response_body
+ok
+
+
+
+=== TEST 26: clear with -n allows subsequent set
+--- config
+    location = /backend {
+        add_header X-Foo "orig";
+        echo hi;
+    }
+    location /foo {
+        response_header_control clear -n 'X-Foo';
+        response_header_control set 'X-Foo' 'replaced';
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Foo: replaced
+--- response_body
+hi
+
+
+
+=== TEST 27: clear without -n locks, subsequent set skipped
+--- config
+    location = /backend {
+        add_header X-Foo "orig";
+        echo hi;
+    }
+    location /foo {
+        response_header_control clear 'X-Foo';
+        response_header_control set 'X-Foo' 'after';
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+! X-Foo
+--- response_body
+hi
+
+
+
+=== TEST 56: empty header name error
+--- config
+    location /foo {
+        response_header_control set '' 'val';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- must_die
+--- error_log chomp
+empty header name
+--- suppress_stderr
+
+
+
+=== TEST 29: header name with space error
+--- config
+    location /foo {
+        response_header_control set 'X Bad' 'val';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- must_die
+--- error_log chomp
+whitespace
+--- suppress_stderr
+
+
+
+=== TEST 30: too few arguments
+--- config
+    location /foo {
+        response_header_control set;
+        echo ok;
+    }
+--- request
+    GET /foo
+--- must_die
+--- error_log chomp
+too few arguments
+--- suppress_stderr
+
+
+
+=== TEST 31: unknown operation
+--- config
+    location /foo {
+        response_header_control foo 'X-Test' 'val';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- must_die
+--- error_log chomp
+unknown operation
+--- suppress_stderr
+
+
+
+=== TEST 32: set header with variables
+--- config
+    location /foo {
+        set $my_val "dynamic";
+        response_header_control set 'X-Dyn' '$my_val';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Dyn: dynamic
+--- response_body
+ok
+
+
+
+=== TEST 33: add with -n allows wildcard to delete
+--- config
+    location = /backend {
+        add_header X-Test "orig";
+        echo hi;
+    }
+    location /foo {
+        response_header_control add -n 'X-Test' 'added';
+        response_header_control clear 'X-*';
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+! X-Test
+--- response_body
+hi
+
+
+
+=== TEST 34: add without -n locks, wildcard still executes
+--- config
+    location = /backend {
+        add_header X-Test "orig";
+        echo hi;
+    }
+    location /foo {
+        response_header_control add 'X-Test' 'added';
+        response_header_control clear 'X-*';
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-Test: added
+--- response_body
+hi
+
+
+
+=== TEST 35: append with duplicate values
+--- config
+    location /foo {
+        response_header_control append 'X-Dup' 'one';
+        response_header_control append 'X-Dup' 'two';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- raw_response_headers_like eval
+qr/X-Dup: one\r\nX-Dup: two/
+--- response_body
+ok
+
+
+
+=== TEST 36: clear duplicate builtin headers
 --- config
     location = /backend {
         add_header pragma no-cache;
         add_header pragma no-cache;
         echo hi;
     }
-    location /hello {
-        more_clear_headers 'pragma';
+    location /foo {
+        response_header_control clear 'pragma';
         proxy_pass http://127.0.0.1:$server_port/backend;
     }
 --- request
-    GET /hello
+    GET /foo
 --- response_headers
 !pragma
 --- response_body
@@ -552,10 +618,10 @@ hi
 
 
 
-=== TEST 33: HTTP 0.9 (set)
+=== TEST 37: HTTP 0.9 does not set header
 --- config
     location /foo {
-        more_set_headers 'X-Foo: howdy';
+        response_header_control set 'X-Foo' 'howdy';
         echo ok;
     }
 --- raw_request eval
@@ -568,41 +634,111 @@ ok
 
 
 
-=== TEST 34: use the -a option to append the cookie field
---- config
-    location /cookie {
-        more_set_headers -a 'Set-Cookie: name=lynch';
-        echo ok;
-    }
---- request
-    GET /cookie
---- response_headers
-Set-Cookie: name=lynch
---- response_body
-ok
-
-
-
-=== TEST 35: the original Set-Cookie fields will not be overwritten, when using the -a option
---- config
-    location /cookie {
-        more_set_headers 'Set-Cookie: name=lynch';
-        more_set_headers -a 'Set-Cookie: born=1981';
-        echo ok;
-    }
---- request
-    GET /cookie
---- raw_response_headers_like eval
-"Set-Cookie: name=lynch\r\nSet-Cookie: born=1981\r\n"
---- response_body
-ok
-
-
-
-=== TEST 36: The behavior of builtin headers can not be changed
+=== TEST 38: request_header_control basic set
 --- config
     location /foo {
-        more_set_headers -a "Server: myServer";
+        set $new_host "myhost";
+        request_header_control set 'Host' '$new_host';
+        echo $http_host;
+    }
+--- request
+    GET /foo
+--- response_body
+myhost
+
+
+
+=== TEST 39: request_header_control clear
+--- config
+    location /foo {
+        request_header_control clear 'User-Agent';
+        echo "ua=[$http_user_agent]";
+    }
+--- request
+    GET /foo
+--- response_body
+ua=[]
+
+
+
+=== TEST 40: request_header_control rewrite (exists)
+--- config
+    location /foo {
+        request_header_control rewrite 'User-Agent' 'CustomUA';
+        echo $http_user_agent;
+    }
+--- request
+    GET /foo
+--- response_body
+CustomUA
+
+
+
+=== TEST 41: request_header_control add (absent, should add)
+--- config
+    location /foo {
+        request_header_control add 'X-New' 'newval';
+        echo "val=[$http_x_new]";
+    }
+--- request
+    GET /foo
+--- response_body
+val=[newval]
+
+
+
+=== TEST 42: request_header_control add (exists, should not change)
+--- config
+    location /foo {
+        request_header_control set -n 'X-Foo' 'original';
+        request_header_control add 'X-Foo' 'should-not-appear';
+        echo "val=[$http_x_foo]";
+    }
+--- request
+    GET /foo
+--- response_body
+val=[original]
+
+
+
+=== TEST 43: multiple rules interaction
+--- config
+    location /foo {
+        response_header_control set 'X-A' 'a1';
+        response_header_control set 'X-B' 'b1';
+        response_header_control set -n 'X-A' 'a2';
+        response_header_control set 'X-A' 'a3';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-A: a3
+X-B: b1
+--- response_body
+ok
+
+
+
+=== TEST 44: builtin header set
+--- config
+    location /foo {
+        response_header_control set 'Server' 'myServer';
+        echo ok;
+    }
+--- request
+    GET /foo
+--- response_headers
+Server: myServer
+--- response_body
+ok
+
+
+
+=== TEST 45: cannot append builtin header
+--- config
+    location /foo {
+        response_header_control append 'Server' 'extra';
         echo ok;
     }
 --- request
@@ -614,15 +750,127 @@ can not append builtin headers
 
 
 
-=== TEST 37: can not use -a option with more_clear_headers
+=== TEST 46: wildcard does not affect exact rule at same level
+--- config
+    location = /backend {
+        add_header X-A "a";
+        add_header X-B "b";
+        echo hi;
+    }
+    location /foo {
+        response_header_control clear 'X-*';
+        response_header_control set 'X-A' 'kept';
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-A: kept
+! X-B
+--- response_body
+hi
+
+
+
+=== TEST 47: Content-Type set
 --- config
     location /foo {
-        more_clear_headers -a 'Content-Type';
+        default_type 'text/plain';
+        response_header_control set 'Content-Type' 'text/html';
         echo ok;
     }
 --- request
     GET /foo
---- must_die
---- error_log chomp
-invalid option name: "-a"
---- suppress_stderr
+--- response_headers
+Content-Type: text/html
+--- response_body
+ok
+
+
+
+=== TEST 48: Content-Length set
+--- config
+    location /foo {
+        response_header_control set 'Content-Length' '5';
+        echo 12345;
+    }
+--- request
+    GET /foo
+--- response_headers
+Content-Length: 5
+--- response_body
+12345
+
+
+
+=== TEST 49: two-level inheritance with wildcard and exact
+--- config
+    response_header_control clear 'X-*';
+    response_header_control set 'X-Main' 'main';
+    location /sub {
+        response_header_control set 'X-Sub' 'sub';
+        echo ok;
+    }
+--- request
+    GET /sub
+--- response_headers
+! X-Main
+X-Sub: sub
+--- response_body
+ok
+
+
+
+=== TEST 50: request_header_control set X-Forwarded-For
+--- config
+    location /foo {
+        request_header_control set 'X-Forwarded-For' '1.2.3.4';
+        echo "xff=[$http_x_forwarded_for]";
+    }
+--- request
+    GET /foo
+--- response_body
+xff=[1.2.3.4]
+
+
+
+=== TEST 51: locked by previous exact rule, wildcard still deletes
+--- config
+    location = /backend {
+        add_header X-Bar "bar";
+        echo hi;
+    }
+    location /foo {
+        response_header_control set 'X-Foo' 'locked';
+        response_header_control clear 'X-*';
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+! X-Bar
+X-Foo: locked
+--- response_body
+hi
+
+
+
+=== TEST 52: conditional wildcard obeying if=
+--- config
+    location = /backend {
+        add_header X-A "a";
+        add_header X-B "b";
+        echo hi;
+    }
+    location /foo {
+        set $do_clear "";
+        response_header_control clear 'X-*' if=$do_clear;
+        proxy_pass http://127.0.0.1:$server_port/backend;
+    }
+--- request
+    GET /foo
+--- response_headers
+X-A: a
+X-B: b
+--- response_body
+hi

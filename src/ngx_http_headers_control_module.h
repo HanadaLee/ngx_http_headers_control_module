@@ -1,11 +1,10 @@
-
 /*
  * Copyright (c) Yichun Zhang (agentzh)
  */
 
 
-#ifndef NGX_HTTP_HEADERS_CONTROL_FILTER_MODULE_H
-#define NGX_HTTP_HEADERS_CONTROL_FILTER_MODULE_H
+#ifndef NGX_HTTP_HEADERS_CONTROL_MODULE_H
+#define NGX_HTTP_HEADERS_CONTROL_MODULE_H
 
 
 #include <ngx_core.h>
@@ -18,19 +17,29 @@ typedef enum {
     ngx_http_headers_control_opcode_clear,
     ngx_http_headers_control_opcode_add,
     ngx_http_headers_control_opcode_append,
-    ngx_http_headers_control_opcode_rewrite
+    ngx_http_headers_control_opcode_rewrite,
+    ngx_http_headers_control_opcode_pass
 } ngx_http_headers_control_opcode_t;
 
 
 typedef struct {
-    ngx_array_t             *headers; /* of ngx_http_headers_control_header_val_t */
+    ngx_uint_t                             *bits;
+    ngx_uint_t                              size;
+} ngx_http_headers_control_bitmap_t;
+
+
+typedef struct {
+    ngx_array_t                            *headers_in;
+    ngx_array_t                            *headers_out;
+    ngx_uint_t                              headers_in_cnt;
+    ngx_uint_t                              headers_out_cnt;
 } ngx_http_headers_control_loc_conf_t;
 
 
 typedef struct {
-    ngx_int_t              postponed_to_phase_end;
-    ngx_int_t              requires_filter;
-    ngx_int_t              requires_handler;
+    ngx_int_t                               postponed_to_phase_end;
+    ngx_int_t                               requires_filter;
+    ngx_int_t                               requires_handler;
 } ngx_http_headers_control_main_conf_t;
 
 
@@ -38,14 +47,15 @@ typedef struct ngx_http_headers_control_header_val_s
     ngx_http_headers_control_header_val_t;
 
 
-typedef ngx_int_t (*ngx_http_headers_control_set_header_pt)(ngx_http_request_t *r,
+typedef ngx_int_t (*ngx_http_headers_control_set_header_pt)(
+    ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv, ngx_str_t *value);
 
 
 typedef struct {
     ngx_str_t                               name;
     ngx_uint_t                              offset;
-    ngx_http_headers_control_set_header_pt     handler;
+    ngx_http_headers_control_set_header_pt  handler;
 } ngx_http_headers_control_set_header_t;
 
 
@@ -53,17 +63,19 @@ struct ngx_http_headers_control_header_val_s {
     ngx_http_complex_value_t                value;
     ngx_uint_t                              hash;
     ngx_str_t                               key;
-    ngx_http_headers_control_set_header_pt     handler;
+    ngx_http_headers_control_set_header_pt  handler;
     ngx_uint_t                              offset;
     ngx_http_headers_control_opcode_t       opcode;
     ngx_http_complex_value_t               *filter;
     ngx_flag_t                              negative;
-    ngx_flag_t                              is_input;
+    ngx_flag_t                              next;
+    ngx_uint_t                              id;
+    ngx_http_headers_control_bitmap_t      *_rt_locked;
     unsigned                                wildcard:1;
 };
 
 
-extern ngx_module_t  ngx_http_headers_control_filter_module;
+extern ngx_module_t  ngx_http_headers_control_module;
 
 
 #ifndef ngx_str_set
@@ -75,4 +87,10 @@ extern ngx_module_t  ngx_http_headers_control_filter_module;
 #define ngx_http_headers_control_assert(a)  assert(a)
 
 
-#endif /* NGX_HTTP_HEADERS_CONTROL_FILTER_MODULE_H */
+#ifndef ngx_isspace
+#define ngx_isspace(c)                                                       \
+        ((c) == ' ' || (c) == '\t' || (c) == CR || (c) == LF)
+#endif
+
+
+#endif /* NGX_HTTP_HEADERS_CONTROL_MODULE_H */

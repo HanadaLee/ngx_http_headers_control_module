@@ -7,7 +7,7 @@
 #define NGX_HTTP_HEADERS_CONTROL_UTIL_H
 
 
-#include "ngx_http_headers_control_filter_module.h"
+#include "ngx_http_headers_control_module.h"
 
 
 #define ngx_http_headers_control_hash_literal(s)                                \
@@ -47,5 +47,12 @@ char *ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
 ngx_int_t ngx_http_headers_control_rm_header_helper(ngx_list_t *l,
     ngx_list_part_t *cur, ngx_uint_t i);
 
+void ngx_http_headers_control_bitmap_init(
+    ngx_http_headers_control_bitmap_t *bm, ngx_uint_t size,
+    ngx_pool_t *pool);
+void ngx_http_headers_control_bitmap_set(
+    ngx_http_headers_control_bitmap_t *bm, ngx_uint_t bit);
+ngx_flag_t ngx_http_headers_control_bitmap_isset(
+    ngx_http_headers_control_bitmap_t *bm, ngx_uint_t bit);
 
 #endif /* NGX_HTTP_HEADERS_CONTROL_UTIL_H */

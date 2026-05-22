@@ -1,4 +1,4 @@
-# vi:filetype=perl
+# vi:filetype=
 
 use lib 'lib';
 use Test::Nginx::Socket;
@@ -11,11 +11,11 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: simple set (1 arg)
+=== TEST 1: set header in denied location
 --- config
     location /foo {
         deny all;
-        more_set_headers 'X-Foo: Blah';
+        response_header_control set 'X-Foo' 'Blah';
     }
 --- request
     GET /foo
