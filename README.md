@@ -19,7 +19,6 @@ Table of Contents
   - [Inheritance \& Chaining](#inheritance--chaining)
     - [Execution order](#execution-order)
     - [Chaining](#chaining)
-    - [Inheritance (merge)](#inheritance-merge)
 - [Limitations](#limitations)
 - [Installation](#installation)
 - [Test Suite](#test-suite)
@@ -32,39 +31,39 @@ Synopsis
 
 ```nginx
  # set a response header
- response_header_control set 'Server' 'my-server';
+ response_header_control set Server my-server;
 
  # set, append, and clear response headers
  location /bar {
-     response_header_control set 'X-MyHeader' 'blah';
-     response_header_control append 'X-MyHeader' 'extra';
-     response_header_control clear 'Content-Type';
+     response_header_control set X-MyHeader blah;
+     response_header_control append X-MyHeader extra;
+     response_header_control clear Content-Type;
  }
 
  # conditional: only if $debug is truthy
  if ($http_debug = 1) {
      set $debug 1;
  }
- response_header_control set 'X-Debug' '1' if=$debug;
+ response_header_control set X-Debug 1 if=$debug;
 
  # -n allows the next rule on the same header to continue
- response_header_control set -n 'X-Foo' 'first';
- response_header_control set 'X-Foo' 'second';  # this overrides
+ response_header_control set -n X-Foo first;
+ response_header_control set X-Foo second;  # this overrides
 
  # set a request header
  location /foo {
-     set $my_host 'my dog';
-     request_header_control set 'Host' '$my_host';
+     set $my_host mydog;
+     request_header_control set Host $my_host;
  }
 
  # rewrite a request header only if it already exists
- request_header_control rewrite 'X-Foo' 'howdy';
+ request_header_control rewrite X-Foo howdy;
 
  # wildcard clear removes all matching response headers
- response_header_control clear 'X-Hidden-*';
+ response_header_control clear X-Hidden-*;
 
  # pass: define a header target for inheritance without runtime effect
- response_header_control pass 'X-Foo';
+ response_header_control pass X-Foo;
 ```
 
 Description
@@ -77,7 +76,7 @@ There are two directives:
 - `response_header_control` — modifies response headers (`r->headers_out`) in the output header filter phase.
 - `request_header_control` — modifies request headers (`r->headers_in`) at the end of the rewrite phase after the standard [rewrite module](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html).
 
-Both accept the same set of operators (see [Operators](#operators)). Nginx variables are supported in header values but not in header names.
+Both accept the same set of operators (see [Operators](#operators)). Variables are supported in header values but not in header names.
 
 Rules may optionally specify:
 
@@ -108,12 +107,12 @@ response_header_control
 **phase:** *output-header-filter*
 
 ```nginx
- response_header_control set 'Server' 'my-server';
- response_header_control clear 'X-Hidden-*';
- response_header_control add 'X-Default' '1';
- response_header_control append 'Set-Cookie' 'name=lynch';
- response_header_control rewrite 'X-Foo' 'new-value';
- response_header_control pass 'X-Header';
+ response_header_control set Server my-server;
+ response_header_control clear X-Hidden-*;
+ response_header_control add X-Default 1;
+ response_header_control append Set-Cookie name=lynch;
+ response_header_control rewrite X-Foo new-value;
+ response_header_control pass X-Header;
 ```
 
 Not allowed in *server* if blocks.
@@ -130,10 +129,10 @@ request_header_control
 **phase:** *rewrite tail*
 
 ```nginx
- request_header_control set 'Host' 'foo';
- request_header_control clear 'User-Agent';
- request_header_control rewrite 'X-Foo' 'new-value';
- request_header_control add 'X-Default' '1';
+ request_header_control set Host foo;
+ request_header_control clear User-Agent;
+ request_header_control rewrite X-Foo new-value;
+ request_header_control add X-Default 1;
 ```
 
 [Back to TOC](#table-of-contents)
@@ -164,34 +163,23 @@ Child block rules execute first, parent rules are appended after.
 Exact rules (non-wildcard) without `-n` **break the chain** for their target header after execution, preventing subsequent rules from modifying it:
 
 ```nginx
- response_header_control set 'X-Foo' 'a';       # breaks chain
- response_header_control set 'X-Foo' 'b';       # skipped
+ response_header_control set X-Foo a;       # breaks chain
+ response_header_control set X-Foo b;       # skipped
 ```
 
 With `-n`, the chain continues:
 
 ```nginx
- response_header_control set -n 'X-Foo' 'a';    # chain continues
- response_header_control set 'X-Foo' 'b';       # executes
+ response_header_control set -n X-Foo a;    # chain continues
+ response_header_control set X-Foo b;       # executes
 ```
 
-Wildcard rules (`clear 'X-*'`) always execute — they do not check chain state and do not break it:
+Wildcard rules (`clear X-*`) always execute — they do not check chain state and do not break it:
 
 ```nginx
- response_header_control clear 'X-*';           # always executes
- response_header_control set 'X-Foo' 'after';   # also executes
+ response_header_control clear X-*;           # always executes
+ response_header_control set X-Foo after;   # also executes
 ```
-
-### Inheritance (merge)
-
-Only child exact rules without `-n` and without `if=` disable parent rules with the same header name. Rules with `-n` or `if=` preserve parent rules as fallbacks.
-
-| Child rule | Parent same-name rule | Result |
-|---|---|---|
-| `set X-Foo v` | `set X-Foo old` | Parent disabled |
-| `set -n X-Foo v` | `set X-Foo old` | Both kept |
-| `set X-Foo v if=$x` | `set X-Foo old` | Both kept |
-| `clear X-*` | `set X-Foo old` | Both kept |
 
 [Back to TOC](#table-of-contents)
 
