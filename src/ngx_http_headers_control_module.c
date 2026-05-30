@@ -133,7 +133,8 @@ ngx_http_headers_control_filter(ngx_http_request_t *r)
                     && ngx_strncasecmp(h[j].key.data, h[i].key.data,
                                        h[i].key.len) == 0
                     && ngx_http_headers_control_bitmap_isset(&locked,
-                                                             h[j].id))
+                                                             h[j].id)
+                       == NGX_OK)
                 {
                     break;
                 }
@@ -239,8 +240,9 @@ ngx_http_headers_control_merge_one_array(ngx_conf_t *cf,
 
     copy_count = 0;
     for (j = 0; j < prev_len; j++) {
-        if (!ngx_http_headers_control_bitmap_isset(&disable_map,
-                                                   prev_h[j].id))
+        if (ngx_http_headers_control_bitmap_isset(&disable_map,
+                                                   prev_h[j].id)
+            != NGX_OK)
         {
             copy_count++;
         }
@@ -254,8 +256,9 @@ ngx_http_headers_control_merge_one_array(ngx_conf_t *cf,
         /* append non-disabled parent rules after child rules */
         pos = orig_len;
         for (j = 0; j < prev_len; j++) {
-            if (!ngx_http_headers_control_bitmap_isset(&disable_map,
-                                                       prev_h[j].id))
+            if (ngx_http_headers_control_bitmap_isset(&disable_map,
+                                                       prev_h[j].id)
+                != NGX_OK)
             {
                 h[pos++] = prev_h[j];
             }
@@ -427,7 +430,8 @@ ngx_http_headers_control_handler(ngx_http_request_t *r)
                     && ngx_strncasecmp(h[j].key.data, h[i].key.data,
                                        h[i].key.len) == 0
                     && ngx_http_headers_control_bitmap_isset(&locked,
-                                                             h[j].id))
+                                                             h[j].id)
+                       == NGX_OK)
                 {
                     break;
                 }

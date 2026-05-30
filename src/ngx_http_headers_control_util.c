@@ -353,16 +353,22 @@ ngx_http_headers_control_bitmap_set(ngx_http_headers_control_bitmap_t *bm,
 }
 
 
-ngx_flag_t
+ngx_int_t
 ngx_http_headers_control_bitmap_isset(ngx_http_headers_control_bitmap_t *bm,
     ngx_uint_t bit)
 {
-    if (bm->bits && bit < bm->size) {
-        return (bm->bits[bit / NGX_INT_T_LEN]
-                & ((ngx_uint_t) 1 << (bit % NGX_INT_T_LEN))) != 0;
+    if (bm->bits == NULL || bit >= bm->size) {
+        return NGX_DECLINED;
     }
 
-    return 0;
+    if ((bm->bits[bit / NGX_INT_T_LEN]
+         & ((ngx_uint_t) 1 << (bit % NGX_INT_T_LEN)))
+        == 0)
+    {
+        return NGX_DECLINED;
+    }
+
+    return NGX_OK;
 }
 
 

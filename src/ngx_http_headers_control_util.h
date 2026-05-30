@@ -52,7 +52,7 @@ void ngx_http_headers_control_bitmap_init(
     ngx_pool_t *pool);
 void ngx_http_headers_control_bitmap_set(
     ngx_http_headers_control_bitmap_t *bm, ngx_uint_t bit);
-ngx_flag_t ngx_http_headers_control_bitmap_isset(
+ngx_int_t ngx_http_headers_control_bitmap_isset(
     ngx_http_headers_control_bitmap_t *bm, ngx_uint_t bit);
 
 #endif /* NGX_HTTP_HEADERS_CONTROL_UTIL_H */
