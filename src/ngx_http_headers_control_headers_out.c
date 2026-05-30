@@ -467,13 +467,15 @@ ngx_http_headers_control_set_content_type_header(ngx_http_request_t *r,
 
         last = p;
 
-        while (*++p == ' ') { /* void */ }
+        while (++p < end && *p == ' ') { /* void */ }
 
         if (p == end) {
             break;
         }
 
-        if (ngx_strncasecmp(p, (u_char *) "charset=", 8) != 0) {
+        if (end - p < 8
+            || ngx_strncasecmp(p, (u_char *) "charset=", 8) != 0)
+        {
             continue;
         }
 
@@ -481,7 +483,7 @@ ngx_http_headers_control_set_content_type_header(ngx_http_request_t *r,
 
         r->headers_out.content_type_len = last - value->data;
 
-        if (*p == '"') {
+        if (p < end && *p == '"') {
             p++;
         }
 
