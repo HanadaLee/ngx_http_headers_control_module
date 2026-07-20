@@ -9,7 +9,7 @@ if (!$ENV{TEST_NGINX_CONDITION}) {
 
 repeat_each(2);
 
-plan tests => repeat_each() * 8;
+plan tests => repeat_each() * 9;
 
 log_level("warn");
 no_diff;
@@ -160,3 +160,24 @@ ok
 --- error_log chomp
 invalid parameter "if=$arg_enabled"
 --- suppress_stderr
+
+
+
+=== TEST 9: or condition accepts more than two references
+--- config
+    location /foo {
+        condition first str_eq $arg_first 1;
+        condition second str_eq $arg_second 1;
+        condition third str_eq $arg_third 1;
+        condition any_enabled or first second third;
+        when any_enabled {
+            response_header_control set X-Condition matched;
+        }
+        echo ok;
+    }
+--- request
+    GET /foo?third=1
+--- response_headers
+X-Condition: matched
+--- response_body
+ok
