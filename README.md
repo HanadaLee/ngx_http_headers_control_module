@@ -40,11 +40,14 @@ Synopsis
      response_header_control clear Content-Type;
  }
 
- # conditional: only if $debug is truthy
- if ($http_debug = 1) {
-     set $debug 1;
+ # With ngx_condition_module (NGX_CONDITION defined)
+ condition debug_enabled str_eq $http_debug 1;
+ when debug_enabled {
+     response_header_control set X-Debug 1;
  }
- response_header_control set X-Debug 1 if=$debug;
+
+ # Without ngx_condition_module (NGX_CONDITION not defined)
+ response_header_control set X-Debug 1 if=$http_debug;
 
  # -n allows the next rule on the same header to continue
  response_header_control set -n X-Foo first;
@@ -78,17 +81,30 @@ There are two directives:
 
 Both accept the same set of operators (see [Operators](#operators)). Variables are supported in header values but not in header names.
 
-Rules may optionally specify:
+Rules may optionally specify `-n` to continue the chain, allowing subsequent
+rules for the same header to execute.
 
-- `-n` — continue the chain: subsequent rules for the same header are allowed to execute.
-- `if=$var` — execute only if `$var` is truthy (non-empty, not `"0"`).
-- `if!=$var` — execute only if `$var` is falsy.
+Conditional syntax is selected at compile time:
+
+- When `NGX_CONDITION` is enabled by `ngx_condition_module`, use named
+  `condition` expressions and place header-control directives inside `when` blocks.
+  `if=` and `if!=` parameters are rejected in this build mode.
+- When `NGX_CONDITION` is not enabled, `when` is unavailable and the legacy
+  `if=$var` and `if!=$var` parameters remain supported. `if=$var` executes for
+  a truthy value (non-empty and not `"0"`); `if!=$var` executes for a falsy
+  value.
 
 If a condition is not met, the rule is skipped and does **not** break the chain.
 
-Wildcard clear rules (`clear 'X-*'`) always execute — they neither check nor break the chain.
+Wildcard clear rules (`clear 'X-*'`) do not participate in exact-header
+locking: they neither check nor break the lock chain. Their condition, if any,
+is still evaluated.
 
-During config merge, child block rules execute first, parent rules are appended after. A child block's exact rule (without `-n` or `if=`) disables parent rules with the same header name. See [Inheritance & Chaining](#inheritance--chaining) for details.
+During config merge, child block rules execute first and parent rules are
+appended afterward. An unconditional child exact rule without `-n` disables
+parent rules with the same header name. A rule associated with `when`, or with
+legacy `if=`/`if!=`, does not disable the parent fallback. See
+[Inheritance & Chaining](#inheritance--chaining) for details.
 
 [Back to TOC](#table-of-contents)
 
@@ -98,11 +114,13 @@ Directives
 response_header_control
 -----------------------
 
-**syntax:** *response_header_control `<operator>` [-n] `<header-name>` [header-value] [if=cond | if!=cond]*
+**syntax with `NGX_CONDITION`:** *response_header_control `<operator>` [-n] `<header-name>` [header-value]*
+
+**legacy syntax:** *response_header_control `<operator>` [-n] `<header-name>` [header-value] [if=cond | if!=cond]*
 
 **default:** *no*
 
-**context:** *http, server, location, location if*
+**context:** *http, server, location, location if; `when` when `NGX_CONDITION` is enabled*
 
 **phase:** *output-header-filter*
 
@@ -120,11 +138,13 @@ Not allowed in *server* if blocks.
 request_header_control
 ----------------------
 
-**syntax:** *request_header_control `<operator>` [-n] `<header-name>` [header-value] [if=cond | if!=cond]*
+**syntax with `NGX_CONDITION`:** *request_header_control `<operator>` [-n] `<header-name>` [header-value]*
+
+**legacy syntax:** *request_header_control `<operator>` [-n] `<header-name>` [header-value] [if=cond | if!=cond]*
 
 **default:** *no*
 
-**context:** *http, server, location, location if*
+**context:** *http, server, location, location if; `when` when `NGX_CONDITION` is enabled*
 
 **phase:** *rewrite tail*
 
@@ -207,6 +227,23 @@ Installation
  make install
 ```
 
+To enable named conditions, build both addons statically in the same Nginx
+configuration. `ngx_condition_module` defines `NGX_CONDITION` for the complete
+build:
+
+```bash
+./configure --prefix=/opt/nginx \
+    --add-module=/path/to/ngx_condition_module \
+    --add-module=/path/to/ngx_http_headers_control_module
+
+make
+make install
+```
+
+In this mode, use `condition` and `when`; do not use the legacy `if=` or `if!=`
+parameters. When `NGX_CONDITION` is not defined, this module preserves the
+legacy syntax and behavior.
+
 Starting from Nginx 1.9.11, use `--add-dynamic-module=PATH` for a dynamic module and load it with:
 
 ```nginx
@@ -220,10 +257,11 @@ This module is included and enabled by default in the [OpenResty bundle](http://
 Test Suite
 ==========
 
-A Perl-driven test suite using [Test::Nginx](http://search.cpan.org/perldoc?Test::Nginx) is included. Requires [proxy](http://nginx.org/en/docs/http/ngx_http_proxy_module.html), [rewrite](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html), and [echo](https://github.com/openresty/echo-nginx-module) modules.
+A Perl-driven test suite using [Test::Nginx](http://search.cpan.org/perldoc?Test::Nginx) is included. Requires [proxy](http://nginx.org/en/docs/http/ngx_http_proxy_module.html), [rewrite](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html), and [echo](https://github.com/openresty/echo-nginx-module) modules. The default suite exercises the legacy `if=` path. Set `TEST_NGINX_CONDITION=1` when testing a build that includes `ngx_condition_module`; legacy conditional cases are skipped and `t/condition.t` exercises `condition`/`when` instead.
 
 ```bash
  $ PATH=/path/to/nginx-with-headers-control-module:$PATH prove -r t
+ $ TEST_NGINX_CONDITION=1 PATH=/path/to/condition-enabled-nginx:$PATH prove -r t
  $ TEST_NGINX_USE_VALGRIND=1 prove -r t   # with valgrind
 ```
 

@@ -40,6 +40,10 @@ static ngx_command_t  ngx_http_headers_control_filter_commands[] = {
 
     { ngx_string("response_header_control"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
+#if (NGX_CONDITION)
+                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
+                        |NGX_HTTP_LOC_WHEN_CONF
+#endif
                         |NGX_CONF_2MORE,
       ngx_http_headers_control_output_header,
       NGX_HTTP_LOC_CONF_OFFSET,
@@ -48,6 +52,10 @@ static ngx_command_t  ngx_http_headers_control_filter_commands[] = {
 
     { ngx_string("request_header_control"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
+#if (NGX_CONDITION)
+                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
+                        |NGX_HTTP_LOC_WHEN_CONF
+#endif
                         |NGX_CONF_2MORE,
       ngx_http_headers_control_input_header,
       NGX_HTTP_LOC_CONF_OFFSET,
@@ -202,6 +210,7 @@ ngx_http_headers_control_merge_one_array(ngx_conf_t *cf,
     ngx_array_t **curr_headers, ngx_array_t *prev_headers,
     ngx_uint_t *curr_cnt, ngx_uint_t prev_cnt)
 {
+    ngx_flag_t                              conditional;
     ngx_uint_t                              i, j;
     ngx_uint_t                              orig_len, prev_len, copy_count, pos;
     ngx_http_headers_control_header_val_t  *prev_h, *h;
@@ -216,13 +225,19 @@ ngx_http_headers_control_merge_one_array(ngx_conf_t *cf,
     ngx_http_headers_control_bitmap_init(&disable_map, prev_cnt, cf->pool);
 
     /*
-     * Child exact rule (no filter, no -n) → disable parent exact rule
-     * with the same header name. Wildcard rules and exact rules with
-     * filter or -n never disable parent rules.
+     * A child unconditional exact rule without -n disables parent exact
+     * rules with the same header name. Wildcard, conditional, and -n rules
+     * never disable parent rules.
      */
     for (i = 0; i < orig_len; i++) {
 
-        if (h[i].filter || h[i].next || h[i].wildcard) {
+#if (NGX_CONDITION)
+        conditional = h[i].expr_id != NGX_CONDITION_NO_EXPR_ID;
+#else
+        conditional = h[i].filter != NULL;
+#endif
+
+        if (conditional || h[i].next || h[i].wildcard) {
             continue;
         }
 

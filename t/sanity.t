@@ -10,6 +10,18 @@ plan tests => repeat_each() * 52;
 log_level("warn");
 no_diff;
 
+add_block_preprocessor {
+    my $block = shift;
+    my $config = $block->config;
+
+    if ($ENV{TEST_NGINX_CONDITION}
+        && defined $config
+        && $config =~ /\bif!?=/)
+    {
+        $block->set_value("skip_eval", "1: 1");
+    }
+};
+
 run_tests();
 
 __DATA__

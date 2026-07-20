@@ -12,6 +12,11 @@
 #include <assert.h>
 
 
+#if (NGX_CONDITION)
+#include <ngx_http_condition_module.h>
+#endif
+
+
 typedef enum {
     ngx_http_headers_control_opcode_set,
     ngx_http_headers_control_opcode_clear,
@@ -66,8 +71,12 @@ struct ngx_http_headers_control_header_val_s {
     ngx_http_headers_control_set_header_pt  handler;
     ngx_uint_t                              offset;
     ngx_http_headers_control_opcode_t       opcode;
+#if (NGX_CONDITION)
+    ngx_condition_expr_id_t                 expr_id;
+#else
     ngx_http_complex_value_t               *filter;
     ngx_flag_t                              negative;
+#endif
     ngx_flag_t                              next;
     ngx_uint_t                              id;
     ngx_http_headers_control_bitmap_t      *_rt_locked;

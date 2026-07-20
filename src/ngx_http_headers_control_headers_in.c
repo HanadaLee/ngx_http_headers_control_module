@@ -180,7 +180,16 @@ ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
     ngx_http_headers_control_header_val_t *hv,
     ngx_http_headers_control_bitmap_t *locked)
 {
-    ngx_str_t  value, val;
+    ngx_str_t  value;
+
+#if (NGX_CONDITION)
+    if (ngx_http_condition_get_expr_result(r, hv->expr_id)
+        != NGX_CONDITION_EXPR_HIT)
+    {
+        return NGX_DECLINED;
+    }
+#else
+    ngx_str_t  val;
 
     if (hv->filter) {
         if (ngx_http_complex_value(r, hv->filter, &val) != NGX_OK) {
@@ -198,6 +207,7 @@ ngx_http_headers_control_exec_input_header(ngx_http_request_t *r,
             }
         }
     }
+#endif
 
     if (hv->opcode == ngx_http_headers_control_opcode_pass) {
         return NGX_OK;
