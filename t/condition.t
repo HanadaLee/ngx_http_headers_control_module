@@ -9,7 +9,7 @@ if (!$ENV{TEST_NGINX_CONDITION}) {
 
 repeat_each(2);
 
-plan tests => repeat_each() * 9;
+plan tests => repeat_each() * 10;
 
 log_level("warn");
 no_diff;
@@ -177,6 +177,29 @@ invalid parameter "if=$arg_enabled"
     }
 --- request
     GET /foo?third=1
+--- response_headers
+X-Condition: matched
+--- response_body
+ok
+
+
+
+=== TEST 10: logical operators accept negated references
+--- config
+    location /foo {
+        condition b str_eq $arg_b 1;
+        condition c str_eq $arg_c 1;
+        condition d str_eq $arg_d 1;
+        condition and_expr and b !c;
+        condition or_expr or c !d;
+        condition not_expr not !b;
+        when and_expr or_expr not_expr {
+            response_header_control set X-Condition matched;
+        }
+        echo ok;
+    }
+--- request
+    GET /foo?b=1
 --- response_headers
 X-Condition: matched
 --- response_body

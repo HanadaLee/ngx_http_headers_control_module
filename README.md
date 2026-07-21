@@ -40,13 +40,13 @@ Synopsis
      response_header_control clear Content-Type;
  }
 
- # With ngx_condition_module (NGX_CONDITION defined)
+ # With ngx_condition_module
  condition debug_enabled str_eq $http_debug 1;
  when debug_enabled {
      response_header_control set X-Debug 1;
  }
 
- # Without ngx_condition_module (NGX_CONDITION not defined)
+ # Without ngx_condition_module
  response_header_control set X-Debug 1 if=$http_debug;
 
  # -n allows the next rule on the same header to continue
@@ -86,10 +86,10 @@ rules for the same header to execute.
 
 Conditional syntax is selected at compile time:
 
-- When `NGX_CONDITION` is enabled by `ngx_condition_module`, use named
+- When [ngx_condition_module](https://git.hanada.info/hanada/ngx_condition_module) is enabled, use named
   `condition` expressions and place header-control directives inside `when` blocks.
   `if=` and `if!=` parameters are rejected in this build mode.
-- When `NGX_CONDITION` is not enabled, `when` is unavailable and the legacy
+- Otherwise, `when` is unavailable and the legacy
   `if=$var` and `if!=$var` parameters remain supported. `if=$var` executes for
   a truthy value (non-empty and not `"0"`); `if!=$var` executes for a falsy
   value.
@@ -114,13 +114,11 @@ Directives
 response_header_control
 -----------------------
 
-**syntax with `NGX_CONDITION`:** *response_header_control `<operator>` [-n] `<header-name>` [header-value]*
+**syntax:** *response_header_control `<operator>` [-n] `<header-name>` [header-value]*
 
-**legacy syntax:** *response_header_control `<operator>` [-n] `<header-name>` [header-value] [if=cond | if!=cond]*
+**default:** *-*
 
-**default:** *no*
-
-**context:** *http, server, location, location if; `when` when `NGX_CONDITION` is enabled*
+**context:** *http, server, location, location if, http when, server when, location when*;
 
 **phase:** *output-header-filter*
 
@@ -133,18 +131,15 @@ response_header_control
  response_header_control pass X-Header;
 ```
 
-Not allowed in *server* if blocks.
 
 request_header_control
 ----------------------
 
-**syntax with `NGX_CONDITION`:** *request_header_control `<operator>` [-n] `<header-name>` [header-value]*
+**syntax:** *request_header_control `<operator>` [-n] `<header-name>` [header-value]*
 
-**legacy syntax:** *request_header_control `<operator>` [-n] `<header-name>` [header-value] [if=cond | if!=cond]*
+**default:** *-*
 
-**default:** *no*
-
-**context:** *http, server, location, location if; `when` when `NGX_CONDITION` is enabled*
+**context:** *http, server, location, location if, http when, server when, location when*;
 
 **phase:** *rewrite tail*
 
@@ -228,8 +223,7 @@ Installation
 ```
 
 To enable named conditions, build both addons statically in the same Nginx
-configuration. `ngx_condition_module` defines `NGX_CONDITION` for the complete
-build:
+configuration.:
 
 ```bash
 ./configure --prefix=/opt/nginx \
@@ -241,7 +235,7 @@ make install
 ```
 
 In this mode, use `condition` and `when`; do not use the legacy `if=` or `if!=`
-parameters. When `NGX_CONDITION` is not defined, this module preserves the
+parameters. When [ngx_condition_module](https://git.hanada.info/hanada/ngx_condition_module) is not defined, this module preserves the
 legacy syntax and behavior.
 
 Starting from Nginx 1.9.11, use `--add-dynamic-module=PATH` for a dynamic module and load it with:
