@@ -10,7 +10,7 @@
 #include "ngx_http_headers_control_module.h"
 
 
-#define ngx_http_headers_control_hash_literal(s)                                \
+#define ngx_http_headers_control_hash_literal(s)                             \
     ngx_http_headers_control_hash_str((u_char *) s, sizeof(s) - 1)
 
 

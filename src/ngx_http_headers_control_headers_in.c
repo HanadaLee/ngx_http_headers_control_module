@@ -48,8 +48,7 @@ static ngx_int_t ngx_http_headers_control_validate_host(ngx_str_t *host,
 
 
 static ngx_http_headers_control_set_header_t
-    ngx_http_headers_control_set_handlers[]
-        = {
+ngx_http_headers_control_set_handlers[] = {
 
     { ngx_string("Host"),
                  offsetof(ngx_http_headers_in_t, host),
@@ -640,7 +639,7 @@ ngx_http_headers_control_set_builtin_multi_header(ngx_http_request_t *r,
 
         dd("clear multi-value headers: %d", nelts);
 #endif
-        
+
         *headers = NULL;
     }
 

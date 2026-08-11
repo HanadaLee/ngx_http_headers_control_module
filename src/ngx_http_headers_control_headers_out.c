@@ -43,8 +43,7 @@ static ngx_int_t ngx_http_headers_control_set_builtin_multi_header(
 
 
 static ngx_http_headers_control_set_header_t
-    ngx_http_headers_control_set_handlers[]
-    = {
+ngx_http_headers_control_set_handlers[] = {
 
     { ngx_string("Server"),
                  offsetof(ngx_http_headers_out_t, server),
