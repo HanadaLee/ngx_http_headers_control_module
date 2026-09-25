@@ -3,8 +3,8 @@
 use lib 'lib';
 use Test::Nginx::Socket;
 
-if (!$ENV{TEST_NGINX_CONDITION}) {
-    plan skip_all => 'requires an NGX_CONDITION-enabled build';
+if (!$ENV{TEST_NGINX_EXPR}) {
+    plan skip_all => 'requires an NGX_EXPR-enabled build';
 }
 
 repeat_each(2);
@@ -21,7 +21,7 @@ __DATA__
 === TEST 1: response rule executes when condition matches
 --- config
     location /foo {
-        condition enabled str_eq $arg_enabled 1;
+        expr enabled str_eq $arg_enabled 1;
         when enabled {
             response_header_control set X-Condition matched;
         }
@@ -43,7 +43,7 @@ ok
             response_header_control set X-Condition matched;
         }
         response_header_control set X-Condition fallback;
-        condition enabled str_eq $arg_enabled 1;
+        expr enabled str_eq $arg_enabled 1;
         echo ok;
     }
 --- request
@@ -58,7 +58,7 @@ ok
 === TEST 3: negated condition reference
 --- config
     location /foo {
-        condition blocked str_eq $arg_blocked 1;
+        expr blocked str_eq $arg_blocked 1;
         when !blocked {
             response_header_control set X-Access allowed;
         }
@@ -76,8 +76,8 @@ ok
 === TEST 4: multiple when references use implicit AND
 --- config
     location /foo {
-        condition is_get str_eq $request_method GET;
-        condition is_public str_eq $arg_scope public;
+        expr is_get str_eq $request_method GET;
+        expr is_public str_eq $arg_scope public;
         when is_get is_public {
             response_header_control set X-Combined yes;
         }
@@ -95,7 +95,7 @@ ok
 === TEST 5: request header rule uses condition result
 --- config
     location /foo {
-        condition enabled str_eq $arg_enabled 1;
+        expr enabled str_eq $arg_enabled 1;
         when enabled {
             request_header_control set X-Condition request;
         }
@@ -116,7 +116,7 @@ request
         when child_enabled {
             response_header_control set X-Scoped child;
         }
-        condition child_enabled str_eq $arg_enabled 1;
+        expr child_enabled str_eq $arg_enabled 1;
         echo ok;
     }
 --- request
@@ -136,7 +136,7 @@ ok
         when child_enabled {
             response_header_control set X-Scoped child;
         }
-        condition child_enabled str_eq $arg_enabled 1;
+        expr child_enabled str_eq $arg_enabled 1;
         echo ok;
     }
 --- request
@@ -148,7 +148,7 @@ ok
 
 
 
-=== TEST 8: legacy if parameter is rejected with NGX_CONDITION
+=== TEST 8: legacy if parameter is rejected with NGX_EXPR
 --- config
     location /foo {
         response_header_control set X-Legacy invalid if=$arg_enabled;
@@ -166,10 +166,10 @@ invalid parameter "if=$arg_enabled"
 === TEST 9: or condition accepts more than two references
 --- config
     location /foo {
-        condition first str_eq $arg_first 1;
-        condition second str_eq $arg_second 1;
-        condition third str_eq $arg_third 1;
-        condition any_enabled or first second third;
+        expr first str_eq $arg_first 1;
+        expr second str_eq $arg_second 1;
+        expr third str_eq $arg_third 1;
+        expr any_enabled or first second third;
         when any_enabled {
             response_header_control set X-Condition matched;
         }
@@ -187,12 +187,12 @@ ok
 === TEST 10: logical operators accept negated references
 --- config
     location /foo {
-        condition b str_eq $arg_b 1;
-        condition c str_eq $arg_c 1;
-        condition d str_eq $arg_d 1;
-        condition and_expr and b !c;
-        condition or_expr or c !d;
-        condition not_expr not !b;
+        expr b str_eq $arg_b 1;
+        expr c str_eq $arg_c 1;
+        expr d str_eq $arg_d 1;
+        expr and_expr and b !c;
+        expr or_expr or c !d;
+        expr not_expr not !b;
         when and_expr or_expr not_expr {
             response_header_control set X-Condition matched;
         }

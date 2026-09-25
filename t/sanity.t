@@ -14,7 +14,7 @@ add_block_preprocessor {
     my $block = shift;
     my $config = $block->config;
 
-    if ($ENV{TEST_NGINX_CONDITION}
+    if ($ENV{TEST_NGINX_EXPR}
         && defined $config
         && $config =~ /\bif!?=/)
     {

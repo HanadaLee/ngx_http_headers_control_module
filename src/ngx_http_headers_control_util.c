@@ -125,7 +125,7 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
     ngx_flag_t                               is_builtin_header;
     ngx_int_t                                rc;
 
-#if !(NGX_CONDITION)
+#if !(NGX_EXPR)
     ngx_http_compile_complex_value_t         ccv;
     ngx_str_t                                s;
 #endif
@@ -199,8 +199,8 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
     ngx_memzero(hv, sizeof(ngx_http_headers_control_header_val_t));
 
     hv->opcode = opcode;
-#if (NGX_CONDITION)
-    hv->expr_id = ngx_condition_get_associated_expr_id(cf);
+#if (NGX_EXPR)
+    hv->expr_id = ngx_expr_get_associated_when_id(cf);
 #endif
 
     cur = 2;
@@ -236,7 +236,7 @@ ngx_http_headers_control_parse_directive(ngx_conf_t *cf,
         value = arg[cur++];
     }
 
-#if !(NGX_CONDITION)
+#if !(NGX_EXPR)
 
     /* optional if= / if!= condition */
     if (cf->args->nelts > cur) {

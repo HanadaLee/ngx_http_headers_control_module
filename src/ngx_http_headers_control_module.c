@@ -40,7 +40,7 @@ static ngx_command_t  ngx_http_headers_control_filter_commands[] = {
 
     { ngx_string("response_header_control"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-#if (NGX_CONDITION)
+#if (NGX_EXPR)
                         |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
                         |NGX_HTTP_LOC_WHEN_CONF
 #endif
@@ -52,7 +52,7 @@ static ngx_command_t  ngx_http_headers_control_filter_commands[] = {
 
     { ngx_string("request_header_control"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-#if (NGX_CONDITION)
+#if (NGX_EXPR)
                         |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
                         |NGX_HTTP_LOC_WHEN_CONF
 #endif
@@ -231,8 +231,8 @@ ngx_http_headers_control_merge_one_array(ngx_conf_t *cf,
      */
     for (i = 0; i < orig_len; i++) {
 
-#if (NGX_CONDITION)
-        conditional = h[i].expr_id != NGX_CONDITION_NO_EXPR_ID;
+#if (NGX_EXPR)
+        conditional = h[i].expr_id != NGX_EXPR_NO_WHEN_ID;
 #else
         conditional = h[i].filter != NULL;
 #endif

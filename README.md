@@ -40,13 +40,13 @@ Synopsis
      response_header_control clear Content-Type;
  }
 
- # With ngx_condition_module
- condition debug_enabled str_eq $http_debug 1;
+ # With ngx_expr_module
+ expr debug_enabled str_eq $http_debug 1;
  when debug_enabled {
      response_header_control set X-Debug 1;
  }
 
- # Without ngx_condition_module
+ # Without ngx_expr_module
  response_header_control set X-Debug 1 if=$http_debug;
 
  # -n allows the next rule on the same header to continue
@@ -86,8 +86,8 @@ rules for the same header to execute.
 
 Conditional syntax is selected at compile time:
 
-- When [ngx_condition_module](https://git.hanada.info/hanada/ngx_condition_module) is enabled, use named
-  `condition` expressions and place header-control directives inside `when` blocks.
+- When [ngx_expr_module](https://git.hanada.info/hanada/ngx_condition_module) is enabled, use named
+  `expr` expressions and place header-control directives inside `when` blocks.
   `if=` and `if!=` parameters are rejected in this build mode.
 - Otherwise, `when` is unavailable and the legacy
   `if=$var` and `if!=$var` parameters remain supported. `if=$var` executes for
@@ -227,15 +227,15 @@ configuration.:
 
 ```bash
 ./configure --prefix=/opt/nginx \
-    --add-module=/path/to/ngx_condition_module \
+    --add-module=/path/to/ngx_expr_module \
     --add-module=/path/to/ngx_http_headers_control_module
 
 make
 make install
 ```
 
-In this mode, use `condition` and `when`; do not use the legacy `if=` or `if!=`
-parameters. When [ngx_condition_module](https://git.hanada.info/hanada/ngx_condition_module) is not defined, this module preserves the
+In this mode, use `expr` and `when`; do not use the legacy `if=` or `if!=`
+parameters. When [ngx_expr_module](https://git.hanada.info/hanada/ngx_condition_module) is not defined, this module preserves the
 legacy syntax and behavior.
 
 Starting from Nginx 1.9.11, use `--add-dynamic-module=PATH` for a dynamic module and load it with:
@@ -251,11 +251,11 @@ This module is included and enabled by default in the [OpenResty bundle](http://
 Test Suite
 ==========
 
-A Perl-driven test suite using [Test::Nginx](http://search.cpan.org/perldoc?Test::Nginx) is included. Requires [proxy](http://nginx.org/en/docs/http/ngx_http_proxy_module.html), [rewrite](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html), and [echo](https://github.com/openresty/echo-nginx-module) modules. The default suite exercises the legacy `if=` path. Set `TEST_NGINX_CONDITION=1` when testing a build that includes `ngx_condition_module`; legacy conditional cases are skipped and `t/condition.t` exercises `condition`/`when` instead.
+A Perl-driven test suite using [Test::Nginx](http://search.cpan.org/perldoc?Test::Nginx) is included. Requires [proxy](http://nginx.org/en/docs/http/ngx_http_proxy_module.html), [rewrite](http://nginx.org/en/docs/http/ngx_http_rewrite_module.html), and [echo](https://github.com/openresty/echo-nginx-module) modules. The default suite exercises the legacy `if=` path. Set `TEST_NGINX_EXPR=1` when testing a build that includes `ngx_expr_module`; legacy conditional cases are skipped and `t/condition.t` exercises `expr`/`when` instead.
 
 ```bash
  $ PATH=/path/to/nginx-with-headers-control-module:$PATH prove -r t
- $ TEST_NGINX_CONDITION=1 PATH=/path/to/condition-enabled-nginx:$PATH prove -r t
+ $ TEST_NGINX_EXPR=1 PATH=/path/to/condition-enabled-nginx:$PATH prove -r t
  $ TEST_NGINX_USE_VALGRIND=1 prove -r t   # with valgrind
 ```
 

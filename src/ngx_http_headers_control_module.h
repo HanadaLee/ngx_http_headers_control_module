@@ -12,8 +12,8 @@
 #include <assert.h>
 
 
-#if (NGX_CONDITION)
-#include <ngx_http_condition_module.h>
+#if (NGX_EXPR)
+#include <ngx_http_expr_module.h>
 #endif
 
 
@@ -71,8 +71,8 @@ struct ngx_http_headers_control_header_val_s {
     ngx_http_headers_control_set_header_pt  handler;
     ngx_uint_t                              offset;
     ngx_http_headers_control_opcode_t       opcode;
-#if (NGX_CONDITION)
-    ngx_condition_expr_id_t                 expr_id;
+#if (NGX_EXPR)
+    ngx_expr_when_id_t                      expr_id;
 #else
     ngx_http_complex_value_t               *filter;
     ngx_flag_t                              negative;

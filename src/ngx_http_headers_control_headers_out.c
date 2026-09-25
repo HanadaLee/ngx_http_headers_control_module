@@ -112,9 +112,8 @@ ngx_http_headers_control_exec_output_header(ngx_http_request_t *r,
 {
     ngx_str_t  value;
 
-#if (NGX_CONDITION)
-    if (ngx_http_condition_get_expr_result(r, hv->expr_id)
-        != NGX_CONDITION_EXPR_HIT)
+#if (NGX_EXPR)
+    if (ngx_http_expr_get_result(r, hv->expr_id) != NGX_EXPR_WHEN_HIT)
     {
         return NGX_DECLINED;
     }
