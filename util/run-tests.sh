@@ -27,7 +27,19 @@ if [[ "${TEST_EXPR:-enabled}" == enabled ]]; then
     export TEST_NGINX_EXPR=1
 fi
 
+dependency_prefix="$module_root/.ci/deps"
+make -C "$module_root/.ci/luajit2" -j"$build_jobs"
+make -C "$module_root/.ci/luajit2" install PREFIX="$dependency_prefix"
+export LUAJIT_INC="$dependency_prefix/include/luajit-2.1"
+export LUAJIT_LIB="$dependency_prefix/lib"
+module_lualib="$dependency_prefix/share/lua/5.1"
+mkdir -p "$module_lualib"
+cp -R "$module_root/.ci/lua-resty-core/lib/." "$module_lualib/"
+cp -R "$module_root/.ci/lua-resty-lrucache/lib/." "$module_lualib/"
+configure_args+=("--with-ld-opt=-Wl,-rpath,$LUAJIT_LIB")
+configure_args+=(--add-module="$module_root/.ci/lua-nginx-module")
 configure_args+=(--add-module="$module_root/.ci/nginx-eval-module")
+configure_args+=(--add-module="$module_root/.ci/echo-nginx-module")
 configure_args+=(--add-module="$module_root")
 
 cd "$nginx_source"

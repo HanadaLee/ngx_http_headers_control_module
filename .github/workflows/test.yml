@@ -22,7 +22,7 @@ jobs:
   test:
     if: github.repository == 'HanadaLee/ngx_http_headers_control_module'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Check out module
         uses: actions/checkout@v6
@@ -56,6 +56,42 @@ jobs:
         with:
           repository: openresty/test-nginx
           path: .ci/test-nginx
+          persist-credentials: false
+
+      - name: Check out echo-nginx-module
+        uses: actions/checkout@v6
+        with:
+          repository: openresty/echo-nginx-module
+          path: .ci/echo-nginx-module
+          persist-credentials: false
+
+      - name: Check out LuaJIT
+        uses: actions/checkout@v6
+        with:
+          repository: openresty/luajit2
+          ref: v2.1-agentzh
+          path: .ci/luajit2
+          persist-credentials: false
+
+      - name: Check out lua-nginx-module
+        uses: actions/checkout@v6
+        with:
+          repository: openresty/lua-nginx-module
+          path: .ci/lua-nginx-module
+          persist-credentials: false
+
+      - name: Check out lua-resty-core
+        uses: actions/checkout@v6
+        with:
+          repository: openresty/lua-resty-core
+          path: .ci/lua-resty-core
+          persist-credentials: false
+
+      - name: Check out lua-resty-lrucache
+        uses: actions/checkout@v6
+        with:
+          repository: openresty/lua-resty-lrucache
+          path: .ci/lua-resty-lrucache
           persist-credentials: false
 
       - name: Install build and test dependencies
