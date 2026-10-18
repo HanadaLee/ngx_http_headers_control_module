@@ -730,16 +730,19 @@ ngx_http_headers_control_validate_host(ngx_str_t *host, ngx_pool_t *pool,
 {
     u_char     *h, ch;
     size_t      i, dot_pos, host_len;
+    ngx_int_t   port;
 
     enum {
         sw_host_start = 0,
         sw_host,
         sw_host_ip_literal,
         sw_host_end,
+        sw_port,
     } state;
 
     dot_pos = host->len;
     host_len = host->len;
+    port = 0;
 
     h = host->data;
 
@@ -779,7 +782,7 @@ ngx_http_headers_control_validate_host(ngx_str_t *host, ngx_pool_t *pool,
             switch (ch) {
             case ':':
                 host_len = i;
-                state = sw_host_end;
+                state = sw_port;
                 break;
             case '-':
                 break;
@@ -873,6 +876,20 @@ ngx_http_headers_control_validate_host(ngx_str_t *host, ngx_pool_t *pool,
         case sw_host_end:
 
             if (ch == ':') {
+                state = sw_port;
+                break;
+            }
+
+            return NGX_DECLINED;
+
+        case sw_port:
+
+            if (ch >= '0' && ch <= '9') {
+                if (port >= 6553 && (port > 6553 || (ch - '0') > 5)) {
+                    return NGX_DECLINED;
+                }
+
+                port = port * 10 + (ch - '0');
                 break;
             }
 
