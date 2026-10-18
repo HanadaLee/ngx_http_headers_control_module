@@ -383,6 +383,10 @@ ngx_http_headers_control_set_builtin_multi_header(ngx_http_request_t *r,
         return NGX_OK;
     }
 
+    if (value->len == 0) {
+        return NGX_OK;
+    }
+
     for (ph = headers; *ph; ph = &(*ph)->next) { /* void */ }
 
     ho = ngx_list_push(&r->headers_out.headers);
@@ -430,6 +434,10 @@ ngx_http_headers_control_set_builtin_multi_header(ngx_http_request_t *r,
             ph[0]->hash = hv->hash;
         }
 
+        return NGX_OK;
+    }
+
+    if (value->len == 0) {
         return NGX_OK;
     }
 
