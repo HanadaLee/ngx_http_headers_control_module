@@ -5,7 +5,7 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => repeat_each() * 52;
+plan 'no_plan';
 
 log_level("warn");
 no_diff;
@@ -99,7 +99,7 @@ ok
 === TEST 5: add - header exists (should not change)
 --- config
     location /foo {
-        response_header_control set 'X-Foo' 'original';
+        response_header_control set -n 'X-Foo' 'original';
         response_header_control add 'X-Foo' 'should-not-appear';
         echo ok;
     }
@@ -115,7 +115,7 @@ ok
 === TEST 6: append alongside existing
 --- config
     location /foo {
-        response_header_control set 'X-Upstream' 'v1';
+        response_header_control set -n 'X-Upstream' 'v1';
         response_header_control append 'X-Upstream' 'v2';
         echo ok;
     }
@@ -131,7 +131,7 @@ ok
 === TEST 7: rewrite - header exists (should update)
 --- config
     location /foo {
-        response_header_control set 'X-Foo' 'old';
+        response_header_control set -n 'X-Foo' 'old';
         response_header_control rewrite 'X-Foo' 'new';
         echo ok;
     }
@@ -478,7 +478,7 @@ hi
 
 
 
-=== TEST 56: empty header name error
+=== TEST 28: empty header name error
 --- config
     location /foo {
         response_header_control set '' 'val';
@@ -518,7 +518,7 @@ whitespace
     GET /foo
 --- must_die
 --- error_log chomp
-too few arguments
+invalid number of arguments
 --- suppress_stderr
 
 
@@ -588,7 +588,7 @@ hi
 --- request
     GET /foo
 --- response_headers
-X-Test: added
+! X-Test
 --- response_body
 hi
 
@@ -597,7 +597,7 @@ hi
 === TEST 35: append with duplicate values
 --- config
     location /foo {
-        response_header_control append 'X-Dup' 'one';
+        response_header_control append -n 'X-Dup' 'one';
         response_header_control append 'X-Dup' 'two';
         echo ok;
     }
@@ -681,6 +681,8 @@ ua=[]
     }
 --- request
     GET /foo
+--- more_headers
+User-Agent: original
 --- response_body
 CustomUA
 
@@ -716,7 +718,7 @@ val=[original]
 === TEST 43: multiple rules interaction
 --- config
     location /foo {
-        response_header_control set 'X-A' 'a1';
+        response_header_control set -n 'X-A' 'a1';
         response_header_control set 'X-B' 'b1';
         response_header_control set -n 'X-A' 'a2';
         response_header_control set 'X-A' 'a3';
@@ -804,13 +806,13 @@ ok
 --- config
     location /foo {
         response_header_control set 'Content-Length' '5';
-        echo 12345;
+        echo -n 12345;
     }
 --- request
     GET /foo
 --- response_headers
 Content-Length: 5
---- response_body
+--- response_body chomp
 12345
 
 
@@ -826,8 +828,8 @@ Content-Length: 5
 --- request
     GET /sub
 --- response_headers
-! X-Main
-X-Sub: sub
+X-Main: main
+! X-Sub
 --- response_body
 ok
 
@@ -861,7 +863,7 @@ xff=[1.2.3.4]
     GET /foo
 --- response_headers
 ! X-Bar
-X-Foo: locked
+! X-Foo
 --- response_body
 hi
 

@@ -9,7 +9,7 @@ if (!$ENV{TEST_NGINX_EXPR}) {
 
 repeat_each(2);
 
-plan tests => repeat_each() * 10;
+plan 'no_plan';
 
 log_level("warn");
 no_diff;

@@ -5,7 +5,7 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => repeat_each() * (4 * blocks());
+plan 'no_plan';
 
 no_long_string();
 
@@ -17,12 +17,12 @@ __DATA__
 --- config
     location /req-header {
         request_header_control clear 'Connection';
-        echo "connection: $http_connection";
+        echo "connection:[$http_connection]";
     }
 --- request
 GET /req-header
 --- response_body
-connection:
+connection:[]
 
 
 

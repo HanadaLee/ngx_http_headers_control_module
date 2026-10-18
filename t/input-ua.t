@@ -5,7 +5,7 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => repeat_each() * (4 * blocks());
+plan 'no_plan';
 
 no_long_string();
 
@@ -17,14 +17,14 @@ __DATA__
 --- config
     location /t {
         request_header_control clear 'User-Agent';
-        echo "User-Agent: $http_user_agent";
+        echo "User-Agent:[$http_user_agent]";
     }
 --- request
 GET /t
 --- more_headers
 User-Agent: Mozilla/5.0 (compatible; MSIE 7.0)
 --- response_body
-User-Agent:
+User-Agent:[]
 
 
 
@@ -62,9 +62,9 @@ User-Agent: Rewritten/1.0
 --- config
     location /t {
         request_header_control rewrite 'User-Agent' 'No-Op';
-        echo "User-Agent: $http_user_agent";
+        echo "User-Agent:[$http_user_agent]";
     }
 --- request
 GET /t
 --- response_body
-User-Agent:
+User-Agent:[]

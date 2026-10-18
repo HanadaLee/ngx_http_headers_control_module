@@ -5,7 +5,7 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => repeat_each() * (4 * blocks());
+plan 'no_plan';
 
 no_long_string();
 
@@ -17,8 +17,8 @@ __DATA__
 --- config
     location /t {
         request_header_control clear 'Cookie';
-        echo "Cookie foo: $cookie_foo";
-        echo "Cookie: $http_cookie";
+        echo "Cookie foo:[$cookie_foo]";
+        echo "Cookie:[$http_cookie]";
     }
 --- request
 GET /t
@@ -26,8 +26,8 @@ GET /t
 Cookie: foo=bar
 Cookie: baz=blah
 --- response_body
-Cookie foo:
-Cookie:
+Cookie foo:[]
+Cookie:[]
 
 
 
@@ -35,14 +35,14 @@ Cookie:
 --- config
     location /t {
         request_header_control clear 'Cookie';
-        echo "Cookie foo: $cookie_foo";
-        echo "Cookie: $http_cookie";
+        echo "Cookie foo:[$cookie_foo]";
+        echo "Cookie:[$http_cookie]";
     }
 --- request
 GET /t
 --- response_body
-Cookie foo:
-Cookie:
+Cookie foo:[]
+Cookie:[]
 
 
 

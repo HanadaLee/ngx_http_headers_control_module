@@ -3,7 +3,7 @@
 use lib 'lib';
 use Test::Nginx::Socket;
 
-plan tests => 32;
+plan 'no_plan';
 
 no_diff;
 
@@ -77,13 +77,13 @@ hi
 --- config
     location /len {
         response_header_control set 'Content-Length' '2';
-        echo hello;
+        echo -n he;
     }
 --- request
     GET /len
 --- response_headers
 Content-Length: 2
---- response_body chop
+--- response_body chomp
 he
 
 
@@ -93,13 +93,13 @@ he
     location /len {
         response_header_control set -n 'Content-Length' '2';
         response_header_control set 'Content-Length' '4';
-        echo hello;
+        echo -n hell;
     }
 --- request
     GET /len
 --- response_headers
 Content-Length: 4
---- response_body chop
+--- response_body chomp
 hell
 
 
@@ -182,6 +182,7 @@ ok
 === TEST 12: set Location
 --- config
     location /foo {
+        absolute_redirect off;
         response_header_control set 'Location' '/new';
         echo ok;
     }

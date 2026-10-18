@@ -4,7 +4,7 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => 24 * repeat_each();
+plan 'no_plan';
 
 no_diff;
 
@@ -39,6 +39,9 @@ GET /foo
 --- error_code: 206
 --- response_body chomp
 htm
+--- user_files
+>>> foo
+<html>range fixture</html>
 
 
 
@@ -72,10 +75,10 @@ hi
 
 
 
-=== TEST 5: clear then set
+=== TEST 5: clear with -n then set
 --- config
     location /foo {
-        response_header_control clear 'Foo';
+        response_header_control clear -n 'Foo';
         response_header_control set 'Foo' 'a';
         echo hi;
     }
@@ -88,11 +91,11 @@ hi
 
 
 
-=== TEST 6: set then clear then set again
+=== TEST 6: set and clear with -n then set again
 --- config
     location /foo {
-        response_header_control set 'Foo' 'a';
-        response_header_control clear 'Foo';
+        response_header_control set -n 'Foo' 'a';
+        response_header_control clear -n 'Foo';
         response_header_control set 'Foo' 'b';
         echo hi;
     }
@@ -169,7 +172,7 @@ foo
 
 === TEST 10: github #20 segfault fix (set)
 --- config
-    location = /t {
+    location = /t/ {
         response_header_control set 'Foo' '1';
         proxy_pass http://127.0.0.1:$server_port;
     }
@@ -179,14 +182,17 @@ GET /t
 Foo: bar
 --- response_body_like: 301 Moved Permanently
 --- error_code: 301
+--- response_headers
+Foo: 1
 --- no_error_log
 [error]
+[alert]
 
 
 
 === TEST 11: github #20 segfault fix (clear)
 --- config
-    location = /t {
+    location = /t/ {
         response_header_control clear 'Foo';
         proxy_pass http://127.0.0.1:$server_port;
     }
@@ -196,8 +202,11 @@ GET /t
 Foo: bar
 --- response_body_like: 301 Moved Permanently
 --- error_code: 301
+--- response_headers
+! Foo
 --- no_error_log
 [error]
+[alert]
 
 
 

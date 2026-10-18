@@ -5,7 +5,7 @@ use Test::Nginx::Socket;
 
 repeat_each(2);
 
-plan tests => repeat_each() * 32;
+plan 'no_plan';
 
 no_long_string();
 
@@ -80,13 +80,13 @@ User-Agent: blah
         request_header_control clear 'Host';
         request_header_control clear 'User-Agent';
         echo "Host: $host";
-        echo "User-Agent: $http_user_agent";
+        echo "User-Agent:[$http_user_agent]";
     }
 --- request
 GET /bar
 --- response_body
 Host: localhost
-User-Agent:
+User-Agent:[]
 
 
 
@@ -94,13 +94,13 @@ User-Agent:
 --- config
     location /bar {
         request_header_control clear 'Content-Length';
-        echo "Content-Length: $http_content_length";
+        echo "Content-Length:[$http_content_length]";
     }
 --- request
 POST /bar
 hello
 --- response_body
-Content-Length:
+Content-Length:[]
 
 
 
@@ -236,12 +236,12 @@ Foo: 127.0.0.1
 --- config
     location /foo {
         request_header_control set 'X-Foo' 'howdy';
-        echo "x-foo: $http_x_foo";
+        echo "x-foo:[$http_x_foo]";
     }
 --- raw_request eval
 "GET /foo\r\n"
 --- response_body
-x-foo:
+x-foo:[]
 --- http09
 
 

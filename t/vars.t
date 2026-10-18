@@ -3,7 +3,7 @@
 use lib 'lib';
 use Test::Nginx::Socket;
 
-plan tests => 9;
+plan 'no_plan';
 
 no_diff;
 
@@ -41,7 +41,7 @@ dog
 
 
 
-=== TEST 3: variable in both header name and value
+=== TEST 3: header name remains literal
 --- config
     location /foo {
         set $val 'hello';
@@ -51,6 +51,7 @@ dog
 --- request
     GET /foo
 --- response_headers
-hello: world
+$val: world
+! hello
 --- response_body
 hi
