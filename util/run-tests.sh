@@ -28,7 +28,7 @@ if [[ "${TEST_EXPR:-enabled}" == enabled ]]; then
 fi
 
 dependency_prefix="$module_root/.ci/deps"
-make -C "$module_root/.ci/luajit2" -j"$build_jobs"
+make -C "$module_root/.ci/luajit2" -j"$build_jobs" PREFIX="$dependency_prefix"
 make -C "$module_root/.ci/luajit2" install PREFIX="$dependency_prefix"
 export LUAJIT_INC="$dependency_prefix/include/luajit-2.1"
 export LUAJIT_LIB="$dependency_prefix/lib"
